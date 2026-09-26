@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 const CLIENT_ID = '1547723929617960960';
 const CLIENT_SECRET = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv';
-const BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE'; // ضع توكن البوت الصحيح هنا
+const BOT_TOKEN = process.env.TOKEN || process.env.BOT_TOKEN || process.env.DISCORD_TOKEN;
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
@@ -16,7 +16,7 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-    console.log(`🤖 Logged in as ${client.user.tag}![cite: 10]`);
+    console.log(`🤖 Logged in as ${client.user.tag}!`);
 });
 
 client.login(BOT_TOKEN);
@@ -344,7 +344,6 @@ app.get('/dashboard/server/:guildId/tickets', (req, res) => {
 app.post('/dashboard/server/:guildId/tickets', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
-    // هنا يمكنك حفظ الإعدادات في قاعدة بيانات (MongoDB / SQLite)
     console.log(`تم حفظ إعدادات التذاكر للسيرفر: ${guildId}`, req.body);
     res.redirect(`/dashboard/server/${guildId}/tickets?success=true`);
 });
@@ -397,5 +396,5 @@ app.post('/dashboard/server/:guildId/protection', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server & Bot are running on port ${PORT}[cite: 10]`);
+    console.log(`🚀 Server & Bot are running on port ${PORT}`);
 });
