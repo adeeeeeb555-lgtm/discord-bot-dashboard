@@ -20,7 +20,10 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// الصفحة الرئيسية (نفس التصميم الاحترافي السابق)
+// رابط تسجيل الدخول مع صلاحية قراءة السيرفرات (guilds)
+const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+
+// الصفحة الرئيسية
 app.get('/', (req, res) => {
   const isLoggedIn = req.session.user ? true : false;
   res.send(`
@@ -57,7 +60,7 @@ app.get('/', (req, res) => {
             <div>
                 ${isLoggedIn ? 
                   `<a href="/dashboard" class="login-btn" style="background-color: #238636;">لوحة التحكم</a>` : 
-                  `<a href="https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds" class="login-btn">تسجيل الدخول</a>`
+                  `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول</a>`
                 }
             </div>
         </nav>
@@ -75,7 +78,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// مسار الـ Callback
+// مسار الـ Callback لجلب بيانات المستخدم وسيرفراته
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect('/');
@@ -96,12 +99,21 @@ app.get('/callback', async (req, res) => {
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) return res.send('فشل المصادقة مع ديسكورد!');
 
+    // جلب معلومات المستخدم
     const userResponse = await fetch('https://discord.com/api/users/@me', {
       headers: { authorization: `${tokenData.token_type} ${tokenData.access_token}` },
     });
-
     const userData = await userResponse.json();
+
+    // جلب سيرفرات المستخدم
+    const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { authorization: `${tokenData.token_type} ${tokenData.access_token}` },
+    });
+    const guildsData = await guildsResponse.json();
+
     req.session.user = userData;
+    req.session.guilds = guildsData;
+    
     res.redirect('/dashboard');
   } catch (err) {
     console.error(err);
@@ -109,11 +121,39 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// الواجهة الداخلية الاحترافية (نمط ProBot الداخلي)
+// لوحة التحكم الداخلية (عرض السيرفرات التي يمتلك فيها صلاحية الإدارة)
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const user = req.session.user;
+  const guilds = req.session.guilds || [];
   const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+  // تصفية السيرفرات: فقط التي يمتلك فيها المستخدم صلاحية Administrator (الرقم 0x8 أو يمتلك خاصية owner)
+  const adminGuilds = guilds.filter(guild => (guild.permissions & 0x8) === 0x8 || guild.owner);
+
+  let guildsHtml = '';
+  if (adminGuilds.length === 0) {
+    guildsHtml = `<p style="color: #8b949e; text-align: center; padding: 20px;">لا توجد لديك سيرفرات تمتلك صلاحية إدارة فيها، أو لم يتم العثور على سيرفرات.</p>`;
+  } else {
+    adminGuilds.forEach(guild => {
+      const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
+      // رابط يتيح اختيار السيرفر المختار مباشرة لإضافة البوت إليه
+      const inviteToServerUrl = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}`;
+      
+      guildsHtml += `
+        <div style="background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="${iconUrl}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
+                <div>
+                    <h4 style="color: #fff; font-size: 15px;">${guild.name}</h4>
+                    <span style="color: #8b949e; font-size: 12px;">إدارة السيرفر</span>
+                </div>
+            </div>
+            <a href="${inviteToServerUrl}" target="_blank" style="background-color: #238636; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: 0.2s;">إضافة البوت</a>
+        </div>
+      `;
+    });
+  }
 
   res.send(`
     <!DOCTYPE html>
@@ -147,9 +187,8 @@ app.get('/dashboard', (req, res) => {
             .stat-card h4 { color: #8b949e; font-size: 13px; margin-bottom: 8px; }
             .stat-card span { font-size: 20px; font-weight: bold; color: #58a6ff; }
             
-            .banner-box { background-color: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 10px; text-align: center; }
-            .banner-box h2 { color: #fff; margin-bottom: 10px; }
-            .banner-box p { color: #8b949e; font-size: 14px; }
+            .section-box { background-color: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 10px; margin-top: 20px; }
+            .section-box h3 { margin-bottom: 15px; font-size: 18px; color: #fff; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
         </style>
     </head>
     <body>
@@ -199,9 +238,12 @@ app.get('/dashboard', (req, res) => {
                 </div>
             </div>
 
-            <div class="banner-box">
-                <h2>أهلاً بك في لوحة تحكم بوتك الاحترافية</h2>
-                <p>قم باختيار أحد الأقسام من القائمة الجانبية لإدارة سيرفرك وتخصيص البوت بكل سهولة.</p>
+            <div class="section-box">
+                <h3>سيرفراتك المتاحة لإدارة البوت</h3>
+                <p style="color: #8b949e; font-size: 13px; margin-bottom: 15px;">اختر السيرفر الذي ترغب في إدخال البوت إليه:</p>
+                <div>
+                    ${guildsHtml}
+                </div>
             </div>
         </div>
 
