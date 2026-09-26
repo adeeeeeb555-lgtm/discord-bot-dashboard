@@ -35,7 +35,7 @@ client.once('ready', async () => {
     }
 });
 
-// حماية البوتات الغير مرغوب فيها
+// حماية السيرفر من البوتات الوهمية
 client.on('guildMemberAdd', async member => {
     if (member.user.bot && member.id !== CLIENT_ID) {
         try {
@@ -71,7 +71,7 @@ client.on('messageDelete', async message => {
 // تفاعل الأزرار والتذاكر
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand() && interaction.commandName === 'help') {
-        await interaction.reply({ content: `✨ أهلاً بك! يمكنك إدارة سيرفرك عبر اللوحة:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, ephemeral: true });
+        await interaction.reply({ content: `✨ أهلاً بك! يمكنك إدارة سيرفرك عبر اللوحة الفخمة:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, ephemeral: true });
     } else if (interaction.isButton()) {
         if (interaction.customId === 'create_ticket') {
             const guild = interaction.guild;
@@ -93,13 +93,13 @@ client.on('interactionCreate', async interaction => {
 
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle(`🎫 تذكرة العضو: ${user.username}`)
-                    .setDescription('يرجى كتابة مشكلتك أو طلبك بالتفصيل، وسيتم الرد عليك قريباً.')
-                    .setColor('#10b981');
+                    .setDescription('يرجى كتابة مشكلتك أو طلبك بالتفصيل، وسيتم الرد عليك قريباً من الإدارة.')
+                    .setColor('#8b5cf6');
 
                 await ticketChannel.send({ content: `<@${user.id}>`, embeds: [welcomeEmbed], components: [closeRow] });
                 await interaction.reply({ content: `✅ تم إنشاء تذكرتك بنجاح: <#${ticketChannel.id}>`, ephemeral: true });
             } catch (err) {
-                await interaction.reply({ content: '❌ حدث خطأ، تأكد من صلاحيات البوت.', ephemeral: true });
+                await interaction.reply({ content: '❌ حدث خطأ، تأكد من صلاحيات البوت (Adminstrator).', ephemeral: true });
             }
         } else if (interaction.customId === 'close_ticket') {
             await interaction.reply({ content: '🔒 جاري إغلاق وحذف التذكرة خلال 5 ثواني...' });
@@ -118,7 +118,7 @@ app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-    secret: 'my_super_secret_key_123',
+    secret: 'my_super_secret_space_key_999',
     resave: false,
     saveUninitialized: false,
     proxy: true
@@ -126,27 +126,35 @@ app.use(session({
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 
-// تصميم اللوحة والقوائم الجانبية
+// التصميم الفخم المقتبس (تدرجات بنفسجية، خلفية نجوم، أحجام ومسافات ممتازة ومريحة للعين)
 const globalStyle = `
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-    body { background-color: #0b0f19; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
-    .sidebar { width: 280px; background: #0d121e; border-left: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: -5px 0 20px rgba(0,0,0,0.6); }
-    .user-profile { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-    .user-profile img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #6366f1; object-fit: cover; }
-    .user-info h3 { font-size: 14px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    body { background-color: #050508; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
+    
+    /* الـ Sidebar الفخم */
+    .sidebar { width: 280px; background: #09090f; border-left: 1px solid rgba(139, 92, 246, 0.15); display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: -5px 0 25px rgba(0,0,0,0.8); }
+    .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .user-profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #8b5cf6; object-fit: cover; box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); }
+    .user-info h3 { font-size: 15px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
     .user-info span { font-size: 12px; color: #94a3b8; }
-    .nav-menu { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
-    .nav-menu li a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #94a3b8; text-decoration: none; border-radius: 12px; font-size: 14px; font-weight: 600; transition: all 0.3s; }
-    .nav-menu li a:hover, .nav-menu li a.active { background: #6366f1; color: #fff; }
-    .nav-menu li.bot-add a { background: #10b981; color: #fff; justify-content: center; margin-top: 15px; }
-    .nav-menu li.logout a { background: rgba(239, 68, 68, 0.15); color: #f87171; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 15px; }
-    .main-content { flex: 1; padding: 40px; overflow-y: auto; background: #0b0f19; }
-    .section-box { background: #131b2e; border: 1px solid rgba(255,255,255,0.08); padding: 30px; border-radius: 18px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    .section-box h3 { margin-bottom: 20px; font-size: 20px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 15px; display: flex; align-items: center; gap: 12px; }
-    .form-control { width: 100%; padding: 14px 18px; background: #080c14; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 12px; margin-bottom: 20px; font-size: 14px; }
-    .form-control:focus { border-color: #6366f1; outline: none; }
-    .btn-save { background: #10b981; color: #fff; padding: 12px 28px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 15px; }
+    
+    .nav-menu { list-style: none; margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
+    .nav-menu li a { display: flex; align-items: center; gap: 14px; padding: 13px 18px; color: #94a3b8; text-decoration: none; border-radius: 14px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; }
+    .nav-menu li a:hover, .nav-menu li a.active { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4); }
+    .nav-menu li.bot-add a { background: #10b981; color: #fff; justify-content: center; margin-top: 15px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    .nav-menu li.logout a { background: rgba(239, 68, 68, 0.1); color: #f87171; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.2); margin-top: 15px; }
+    
+    /* المحتوى الرئيسي */
+    .main-content { flex: 1; padding: 45px; overflow-y: auto; background: radial-gradient(circle at top, #110c24 0%, #050508 70%); }
+    .section-box { background: #0c0a1d; border: 1px solid rgba(139, 92, 246, 0.2); padding: 35px; border-radius: 20px; margin-top: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden; }
+    .section-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #8b5cf6, transparent); }
+    .section-box h3 { margin-bottom: 25px; font-size: 22px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 18px; display: flex; align-items: center; gap: 12px; }
+    
+    .form-control { width: 100%; padding: 15px 20px; background: #050508; border: 1px solid rgba(139, 92, 246, 0.3); color: #fff; border-radius: 14px; margin-bottom: 20px; font-size: 15px; transition: all 0.3s; }
+    .form-control:focus { border-color: #a855f7; outline: none; box-shadow: 0 0 15px rgba(168, 85, 247, 0.3); }
+    .btn-save { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; padding: 14px 32px; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 5px 20px rgba(124, 58, 237, 0.4); transition: 0.3s; }
+    .btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(124, 58, 237, 0.6); }
 `;
 
 function getServerSidebar(guildId, activePage, avatarUrl, username) {
@@ -157,15 +165,15 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
                 <img src="${avatarUrl}" alt="Avatar">
                 <div class="user-info">
                     <h3>${username}</h3>
-                    <span>لوحة تحكم السيرفر</span>
+                    <span>لوحة التحكم الفضائية</span>
                 </div>
             </div>
             <ul class="nav-menu">
-                <li><a href="/dashboard">⬅ العودة للقائمة</a></li>
+                <li><a href="/dashboard">⬅ العودة للسيرفرات</a></li>
                 <li><a href="/dashboard/server/${guildId}/stats" class="${activePage === 'stats' ? 'active' : ''}">📊 نظرة عامة</a></li>
-                <li><a href="/dashboard/server/${guildId}/tickets" class="${activePage === 'tickets' ? 'active' : ''}">🎫 إرسال التذاكر</a></li>
+                <li><a href="/dashboard/server/${guildId}/tickets" class="${activePage === 'tickets' ? 'active' : ''}">🎫 نظام التذاكر</a></li>
                 <li><a href="/dashboard/server/${guildId}/protection" class="${activePage === 'protection' ? 'active' : ''}">🛡️ الحماية واللوق</a></li>
-                <li class="bot-add"><a href="${BOT_INVITE_URL}" target="_blank">➕ إضافة البوت للسيرفر</a></li>
+                <li class="bot-add"><a href="${BOT_INVITE_URL}" target="_blank">➕ إضافة البوت</a></li>
             </ul>
         </div>
         <ul class="nav-menu" style="margin-top:0;">
@@ -175,30 +183,51 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
   `;
 }
 
+// الصفحة الرئيسية (الهيرو المقتبس بنفس الستايل الفخم المضيء)
 app.get('/', (req, res) => {
     const isLoggedIn = req.session.user ? true : false;
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>لوحة التحكم</title>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>Star Discord Manager</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-        body { background: #0b0f19; color: #fff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background: #0d121e; border-bottom: 1px solid rgba(255,255,255,0.08); }
-        .login-btn { background: #5865F2; color: white; padding: 12px 25px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; }
-        .hero { text-align: center; padding: 80px 20px; max-width: 850px; margin: auto; }
-        .hero h1 { font-size: 45px; font-weight: 900; margin-bottom: 20px; }
-        .btn-primary { background: #6366f1; color: white; padding: 16px 35px; border-radius: 14px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; }
+        body { background: #050508; color: #fff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow-x: hidden; }
+        
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 25px 70px; background: rgba(9, 9, 15, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(139, 92, 246, 0.15); }
+        .logo { font-size: 22px; font-weight: 900; background: linear-gradient(135deg, #fff, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .login-btn { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; padding: 12px 28px; border-radius: 14px; text-decoration: none; font-weight: bold; font-size: 14px; box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4); transition: 0.3s; }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(124, 58, 237, 0.6); }
+        
+        .hero { text-align: center; padding: 110px 20px 80px 20px; max-width: 900px; margin: auto; position: relative; }
+        /* إضاءة الهالة البنفسجية الخلفية المقتبسة */
+        .hero::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 600px; height: 250px; background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.25) 0%, rgba(5, 5, 8, 0) 70%); z-index: -1; filter: blur(30px); }
+        
+        .hero h1 { font-size: 52px; font-weight: 900; margin-bottom: 25px; line-height: 1.3; letter-spacing: -1px; }
+        .hero h1 span { background: linear-gradient(135deg, #c084fc, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: #94a3b8; margin-bottom: 40px; font-size: 17px; line-height: 1.8; max-width: 700px; margin-left: auto; margin-right: auto; }
+        
+        .cta-buttons { display: flex; gap: 18px; justify-content: center; align-items: center; }
+        .btn-primary { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; padding: 16px 36px; border-radius: 16px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 6px 25px rgba(124, 58, 237, 0.4); transition: 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.6); }
+        .btn-secondary { background: #0c0a1d; border: 1px solid rgba(139, 92, 246, 0.3); color: #fff; padding: 16px 36px; border-radius: 16px; text-decoration: none; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-secondary:hover { background: rgba(139, 92, 246, 0.1); border-color: #8b5cf6; }
+        
+        footer { text-align: center; padding: 25px; color: #64748b; font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04); background: #050508; }
     </style></head>
     <body>
         <nav>
-            <div style="font-weight: 900; font-size: 20px;">⚡ Bot Manager</div>
-            <div>${isLoggedIn ? `<a href="/dashboard" class="login-btn" style="background:#10b981;">لوحة التحكم</a>` : `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول بديسكورد</a>`}</div>
+            <div class="logo">⚡ Star Universe</div>
+            <div>${isLoggedIn ? `<a href="/dashboard" class="login-btn">لوحة التحكم</a>` : `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول بديسكورد</a>`}</div>
         </nav>
         <div class="hero">
-            <h1>إدارة التذاكر والحماية <span>بكل سهولة</span></h1>
-            <p style="color:#94a3b8; margin-bottom:30px; font-size:16px;">تحكم كامل بسيرفرك، أرسل بانل التذاكر، واحمِ سيرفرك من البوتات الوهمية.</p>
-            <a href="${BOT_INVITE_URL}" target="_blank" class="btn-primary">إضافة البوت لسيرفرك 🚀</a>
+            <h1>تبدأ مغامرتك على <span>الديسكورد بين النجوم</span></h1>
+            <p>المنصة الأحدث والأكثر تطوراً لإدارة سيرفرك، تذاكر الدعم الفني، وأنظمة الحماية والسجلات بأعلى كفاءة وتصميم فخم.</p>
+            <div class="cta-buttons">
+                <a href="${BOT_INVITE_URL}" target="_blank" class="btn-primary">إضافة البوت 🚀</a>
+                <a href="${isLoggedIn ? '/dashboard' : DISCORD_LOGIN_URL}" class="btn-secondary">لوحة التحكم</a>
+            </div>
         </div>
-        <footer style="text-align:center; padding:20px; color:#64748b; font-size:13px;">جميع الحقوق محفوظة © 2026</footer>
+        <footer>جميع الحقوق محفوظة © 2026 Star Universe</footer>
     </body></html>
   `);
 });
@@ -242,16 +271,16 @@ app.get('/dashboard', (req, res) => {
         const hasBot = client.guilds.cache.has(guild.id);
         
         const actionButton = hasBot ? 
-            `<a href="/dashboard/server/${guild.id}/stats" style="background: #3b82f6; color: #fff; padding: 12px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700;">إدارة البوت ⚡</a>` :
-            `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: #10b981; color: #fff; padding: 12px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700;">إضافة البوت ➕</a>`;
+            `<a href="/dashboard/server/${guild.id}/stats" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);">إدارة البوت ⚡</a>` :
+            `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: #10b981; color: #fff; padding: 12px 24px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">إضافة البوت ➕</a>`;
 
         const statusBadge = hasBot ? `<span style="color: #34d399; font-size: 13px; font-weight: 600;">البوت متصل ويعمل ✅</span>` : `<span style="color: #f87171; font-size: 13px; font-weight: 600;">البوت غير مضاف ❌</span>`;
 
         guildsHtml += `
-            <div style="background: #0d121e; border: 1px solid rgba(255,255,255,0.08); padding: 20px 25px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                <div style="display: flex; align-items: center; gap: 18px;">
-                    <img src="${iconUrl}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1);">
-                    <div><h4 style="color: #fff; font-size: 16px; margin-bottom: 6px;">${guild.name}</h4>${statusBadge}</div>
+            <div style="background: #09090f; border: 1px solid rgba(139, 92, 246, 0.2); padding: 22px 28px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; transition: 0.3s;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <img src="${iconUrl}" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2px solid #8b5cf6;">
+                    <div><h4 style="color: #fff; font-size: 17px; margin-bottom: 6px;">${guild.name}</h4>${statusBadge}</div>
                 </div>
                 ${actionButton}
             </div>
@@ -268,7 +297,7 @@ app.get('/dashboard', (req, res) => {
             </div>
             <ul class="nav-menu" style="margin-top:0;"><li class="logout"><a href="/">🚪 خروج</a></li></ul>
         </div>
-        <div class="main-content"><div class="section-box"><h3>🌐 سيرفراتك وإدارة الأنظمة</h3><div>${guildsHtml}</div></div></div>
+        <div class="main-content"><div class="section-box"><h3>🌐 سيرفراتك المتاحة للإدارة</h3><div>${guildsHtml}</div></div></div>
     </body></html>
   `);
 });
@@ -287,11 +316,11 @@ app.get('/dashboard/server/:guildId/stats', (req, res) => {
         <div class="main-content">
             <div class="section-box">
                 <h3>📊 حالة سيرفر: ${guild.name}</h3>
-                <p style="color:#94a3b8; font-size:15px; line-height:1.8;">
-                   البوت متصل بالسيرفر وجاهز تماماً:<br>
-                   - 🎫 **التذاكر:** انتقل لقسم (إرسال التذاكر) لنشر بانل التذاكر بروم محدد.<br>
-                   - 🛡️ **الحماية:** مفعلة تلقائياً ضد طرد البوتات الخارجية.<br>
-                   - 📋 **السجلات:** يراقب رسائل الحذف في روم <code style="color:#34d399;">logs</code>.
+                <p style="color:#94a3b8; font-size:15px; line-height:1.9;">
+                   البوت متصل بالسيرفر وجاهز للعمل بكامل طاقته:<br>
+                   - 🎫 **التذاكر:** توجه إلى قسم (نظام التذاكر) لإرسال بانل التذاكر بالروم الذي تختاره.<br>
+                   - 🛡️ **الحماية:** مفعلة تلقائياً ضد البوتات الضارة.<br>
+                   - 📋 **السجلات:** يراقب الرسائل المحذوفة في روم <code style="color:#a855f7;">logs</code>.
                 </p>
             </div>
         </div>
@@ -306,7 +335,7 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     const discordGuild = client.guilds.cache.get(guildId);
     
     let channelsHtml = '';
-    let successMsg = req.query.success ? '<div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 14px; border-radius: 12px; margin-bottom: 20px; font-size: 14px;">✅ تم إرسال لوحة التذاكر بنجاح إلى الروم المحدد في السيرفر!</div>' : '';
+    let successMsg = req.query.success ? '<div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 15px; border-radius: 14px; margin-bottom: 25px; font-size: 14px;">✅ تم إرسال لوحة التذاكر بنجاح إلى الروم المحدد في السيرفر!</div>' : '';
 
     if (discordGuild) {
         const textChannels = discordGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
@@ -316,7 +345,7 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     }
 
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>التذاكر</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>نظام التذاكر</title><style>${globalStyle}</style></head>
     <body>
         ${getServerSidebar(guildId, 'tickets', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
@@ -324,9 +353,9 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
                 <h3>🎫 إرسال لوحة التذاكر إلى السيرفر</h3>
                 ${successMsg}
                 <form action="/dashboard/server/${guildId}/tickets/send" method="POST">
-                    <label style="font-size:14px; color:#94a3b8; display:block; margin-bottom:10px;">اختر الروم النصي لإرسال لوحة التذاكر:</label>
+                    <label style="font-size:14px; color:#94a3b8; display:block; margin-bottom:12px;">اختر الروم النصي لإرسال اللوحة:</label>
                     <select name="channelId" class="form-control" required>
-                        <option value="">-- اختر الروم --</option>
+                        <option value="">-- اختر الروم المناسب --</option>
                         ${channelsHtml}
                     </select>
                     <button type="submit" class="btn-save">إرسال لوحة التذاكر 🚀</button>
@@ -353,8 +382,8 @@ app.post('/dashboard/server/:guildId/tickets/send', async (req, res) => {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🎫 نظام الدعم الفني والتذاكر')
-                    .setDescription('انقر على الزر أدناه لفتح تذكرة خاصة والتحدث مع الإدارة.')
-                    .setColor('#6366f1');
+                    .setDescription('انقر على الزر أدناه لفتح تذكرة خاصة والتواصل مع طاقم الإدارة بكل سهولة.')
+                    .setColor('#8b5cf6');
 
                 await targetChannel.send({ embeds: [embed], components: [row] });
             }
@@ -371,15 +400,15 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
     const { guildId } = req.params;
     const user = req.session.user;
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>الحماية</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>الحماية والسجلات</title><style>${globalStyle}</style></head>
     <body>
         ${getServerSidebar(guildId, 'protection', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
             <div class="section-box">
-                <h3>🛡️ حماية السيرفر والسجلات</h3>
-                <p style="color:#94a3b8; font-size:14px; line-height:1.8;">
-                   - طرد البوتات غير المصرح بها مفعل تلقائياً.<br>
-                   - مراقبة الحذف تتم في روم باسم <code style="color:#34d399;">logs</code>.
+                <h3>🛡️ حماية السيرفر ونظام السجلات (Logs)</h3>
+                <p style="color:#94a3b8; font-size:15px; line-height:1.9;">
+                   - حماية أمان السيرفر ضد دخول البوتات الغير مصرح بها مفعلة تلقائياً بنسبة 100%.<br>
+                   - نظام مراقبة حذف الرسائل يقوم بنشر السجلات في روم باسم <code style="color:#a855f7;">logs</code> فوراً.
                 </p>
             </div>
         </div>
@@ -388,5 +417,5 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server & Bot are running on port ${PORT}`);
+    console.log(`🚀 Space Dashboard & Bot running perfectly on port ${PORT}`);
 });
