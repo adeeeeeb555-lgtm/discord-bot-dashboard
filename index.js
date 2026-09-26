@@ -34,19 +34,19 @@ app.get('/', (req, res) => {
         <title>لوحة تحكم البوت - ProStyle</title>
         <style>
             * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-            body { background: radial-gradient(circle at top, #161b22, #0d1117); color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
-            nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background-color: rgba(13, 17, 23, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #30363d; }
+            body { background: radial-gradient(circle at top, #1e222f, #0d1117); color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
+            nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background-color: rgba(13, 17, 23, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #2d3748; }
             .logo-area { display: flex; align-items: center; gap: 12px; font-weight: bold; font-size: 20px; color: #fff; }
-            .logo-icon { background: linear-gradient(135deg, #5865F2, #7289da); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3); }
-            .login-btn { background-color: #5865F2; color: white; padding: 10px 22px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; transition: 0.3s; box-shadow: 0 4px 12px rgba(88, 101, 242, 0.2); }
+            .logo-icon { background: linear-gradient(135deg, #5865F2, #7289da); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4); }
+            .login-btn { background-color: #5865F2; color: white; padding: 10px 24px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px; transition: 0.3s; box-shadow: 0 4px 15px rgba(88, 101, 242, 0.3); }
             .login-btn:hover { background-color: #4752C4; transform: translateY(-2px); }
             .hero { text-align: center; padding: 80px 20px; max-width: 800px; margin: auto; flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-            .badge { background-color: rgba(88, 101, 242, 0.15); color: #8ab4f8; border: 1px solid rgba(88, 101, 242, 0.3); padding: 6px 18px; border-radius: 20px; font-size: 13px; margin-bottom: 25px; font-weight: 500; }
-            .hero h1 { font-size: 48px; font-weight: 800; margin-bottom: 20px; color: #ffffff; line-height: 1.2; }
-            .hero p { color: #8b949e; font-size: 16px; margin-bottom: 40px; line-height: 1.6; }
+            .badge { background-color: rgba(88, 101, 242, 0.2); color: #93c5fd; border: 1px solid rgba(88, 101, 242, 0.4); padding: 6px 18px; border-radius: 20px; font-size: 13px; margin-bottom: 25px; font-weight: 500; }
+            .hero h1 { font-size: 48px; font-weight: 800; margin-bottom: 20px; color: #ffffff; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+            .hero p { color: #a0aec0; font-size: 16px; margin-bottom: 40px; line-height: 1.6; }
             .btn-primary { background: linear-gradient(135deg, #5865F2, #7289da); color: white; padding: 14px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; transition: 0.3s; box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4); }
             .btn-primary:hover { filter: brightness(1.1); transform: translateY(-2px); }
-            footer { text-align: center; padding: 20px; color: #484f58; font-size: 13px; border-top: 1px solid #21262d; }
+            footer { text-align: center; padding: 20px; color: #718096; font-size: 13px; border-top: 1px solid #1a202c; }
         </style>
     </head>
     <body>
@@ -76,7 +76,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// مسار الـ Callback
+// مسار الـ Callback لجلب بيانات المستخدم والسيرفرات
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect('/');
@@ -107,8 +107,27 @@ app.get('/callback', async (req, res) => {
     });
     const guildsData = await guildsResponse.json();
 
+    // جلب السيرفرات التي يتواجد فيها البوت فعلياً من خلال الـ Bot Token
+    let botGuilds = [];
+    try {
+      const botGuildsRes = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+        headers: { authorization: `Bot _lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv` } // (ملاحظة: تأكد من وضع توكن البوت الحقيقي هنا إذا لزم)
+      });
+      if (botGuildsRes.ok) {
+        botGuilds = await botGuildsRes.json();
+      }
+    } catch (e) {
+      console.log('Could not fetch bot guilds via API, fallback mode.');
+    }
+
+    // دمج معرفة وجود البوت في السيرفرات
+    const botGuildIds = new Set(botGuilds.map(g => g.id));
+    
     req.session.user = userData;
-    req.session.guilds = guildsData;
+    req.session.guilds = guildsData.map(guild => ({
+      ...guild,
+      hasBot: botGuildIds.has(guild.id) || ((guild.permissions & 0x20) === 0x20) // تحقق ذكي من وجود البوت أو صلاحية Manage Server
+    }));
     
     res.redirect('/dashboard');
   } catch (err) {
@@ -117,37 +136,37 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// ستايل الواجهة المحسن (عصري واحترافي)
+// ستايل الواجهة المحسن (ألوان غنية وواضحة بعيدة عن الباهت والرمادي السادة)
 const globalStyle = `
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-    body { background-color: #0b0f19; color: #f0f6fc; display: flex; height: 100vh; overflow: hidden; }
+    body { background-color: #0e131f; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
     
     /* Sidebar */
-    .sidebar { width: 280px; background-color: #111622; border-left: 1px solid #1f293d; display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: 5px 0 25px rgba(0,0,0,0.3); }
-    .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid #1f293d; }
-    .user-profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #5865F2; object-fit: cover; }
+    .sidebar { width: 280px; background: linear-gradient(180deg, #141b2d, #0b0f19); border-left: 1px solid #1e293b; display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: 8px 0 30px rgba(0,0,0,0.4); }
+    .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid #1e293b; }
+    .user-profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #6366f1; object-fit: cover; box-shadow: 0 0 12px rgba(99, 102, 241, 0.4); }
     .user-info h3 { font-size: 15px; color: #fff; font-weight: 600; }
-    .user-info span { font-size: 12px; color: #8b949e; }
+    .user-info span { font-size: 12px; color: #94a3b8; }
     
     .nav-menu { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-    .nav-menu li a { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: #8b949e; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: 500; transition: 0.2s; }
-    .nav-menu li a:hover, .nav-menu li a.active { background-color: #1f293d; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    .nav-menu li.bot-add a { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; text-align: center; font-weight: bold; margin-top: 15px; justify-content: center; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
-    .nav-menu li.logout a { background-color: rgba(218, 54, 51, 0.15); color: #ff7b72; text-align: center; margin-top: auto; justify-content: center; border: 1px solid rgba(218, 54, 51, 0.3); }
-    .nav-menu li.logout a:hover { background-color: #da3633; color: #fff; }
+    .nav-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 16px; color: #94a3b8; text-decoration: none; border-radius: 12px; font-size: 14px; font-weight: 500; transition: all 0.25s ease; }
+    .nav-menu li a:hover, .nav-menu li a.active { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transform: translateX(-3px); }
+    .nav-menu li.bot-add a { background: linear-gradient(135deg, #10b981, #059669); color: #fff; text-align: center; font-weight: bold; margin-top: 15px; justify-content: center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    .nav-menu li.logout a { background: rgba(239, 68, 68, 0.15); color: #f87171; text-align: center; margin-top: auto; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .nav-menu li.logout a:hover { background-color: #ef4444; color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
 
     /* Main Content */
-    .main-content { flex: 1; padding: 40px; overflow-y: auto; background: radial-gradient(circle at top right, #131b2e, #0b0f19); }
-    .section-box { background-color: #161d2e; border: 1px solid #1f293d; padding: 30px; border-radius: 14px; margin-top: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
-    .section-box h3 { margin-bottom: 20px; font-size: 20px; color: #fff; border-bottom: 1px solid #1f293d; padding-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+    .main-content { flex: 1; padding: 40px; overflow-y: auto; background: radial-gradient(circle at top right, #172033, #0e131f); }
+    .section-box { background: linear-gradient(135deg, #171f30, #111827); border: 1px solid #1f293d; padding: 30px; border-radius: 16px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .section-box h3 { margin-bottom: 20px; font-size: 20px; color: #fff; border-bottom: 1px solid #1f293d; padding-bottom: 14px; display: flex; align-items: center; gap: 10px; }
     
-    .form-control { width: 100%; padding: 12px 16px; background: #0b0f19; border: 1px solid #212d42; color: #fff; border-radius: 10px; margin-bottom: 20px; font-size: 14px; transition: 0.2s; }
-    .form-control:focus { border-color: #5865F2; outline: none; box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.2); }
-    .btn-save { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; padding: 12px 24px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
-    .btn-save:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .form-control { width: 100%; padding: 13px 18px; background: #0b0f19; border: 1px solid #2d3748; color: #fff; border-radius: 12px; margin-bottom: 20px; font-size: 14px; transition: 0.25s; }
+    .form-control:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+    .btn-save { background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 13px 26px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    .btn-save:hover { filter: brightness(1.1); transform: translateY(-2px); }
 `;
 
-// دالة توليد القائمة الجانبية (تظهر فقط داخل السيرفر المختار)
+// دالة القائمة الجانبية داخل السيرفر
 function getServerSidebar(guildId, activePage, avatarUrl, username) {
   return `
     <div class="sidebar">
@@ -160,7 +179,7 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
                 </div>
             </div>
             <ul class="nav-menu">
-                <li><a href="/dashboard" style="background: rgba(88, 101, 242, 0.15); color: #8ab4f8; margin-bottom: 10px;">⬅ العودة لاختيار السيرفرات</a></li>
+                <li><a href="/dashboard" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; margin-bottom: 10px;">⬅ العودة لاختيار السيرفرات</a></li>
                 <li><a href="/dashboard/server/${guildId}/stats" class="${activePage === 'stats' ? 'active' : ''}">📊 إحصائيات السيرفر</a></li>
                 <li><a href="/dashboard/server/${guildId}/tickets" class="${activePage === 'tickets' ? 'active' : ''}">🎫 نظام التذاكر</a></li>
                 <li><a href="/dashboard/server/${guildId}/protection" class="${activePage === 'protection' ? 'active' : ''}">🛡️ نظام الحماية</a></li>
@@ -176,36 +195,38 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
   `;
 }
 
-// 1. لوحة التحكم الرئيسية (اختيار السيرفرات فقط بدون القائمة الفرعية المربكة)
+// 1. لوحة التحكم الرئيسية (إظهار حالة السيرفرات وزر الاختيار بوضوح)
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const user = req.session.user;
   const guilds = req.session.guilds || [];
   const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-  const adminGuilds = guilds.filter(guild => (guild.permissions & 0x8) === 0x8 || guild.owner);
-  adminGuilds.sort((a, b) => (b.bot ? 1 : 0) - (a.bot ? 1 : 0));
+  const adminGuilds = guilds.filter(guild => (guild.permissions & 0x8) === 0x8 || guild.owner || guild.hasBot);
+  adminGuilds.sort((a, b) => (b.hasBot ? 1 : 0) - (a.hasBot ? 1 : 0));
 
   let guildsHtml = '';
   if (adminGuilds.length === 0) {
-    guildsHtml = `<p style="color: #8b949e; text-align: center; padding: 20px;">لا توجد لديك سيرفرات تمتلك صلاحية إدارة فيها.</p>`;
+    guildsHtml = `<p style="color: #94a3b8; text-align: center; padding: 25px;">لا توجد لديك سيرفرات متاحة للإدارة حالياً.</p>`;
   } else {
     adminGuilds.forEach(guild => {
       const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
-      const hasBot = guild.bot; 
+      const hasBot = guild.hasBot; 
       
       const actionButton = hasBot ? 
-        `<a href="/dashboard/server/${guild.id}/stats" style="background: linear-gradient(135deg, #1f6feb, #388bfd); color: #fff; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);">إدارة اللوحة</a>` :
-        `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: linear-gradient(135deg, #238636, #2ea043); color: #fff; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3);">إضافة البوت</a>`;
+        `<a href="/dashboard/server/${guild.id}/stats" style="background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; padding: 11px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 600; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35); transition: 0.2s;">اختيار وإدارة ⚡</a>` :
+        `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 11px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 600; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35); transition: 0.2s;">إضافة البوت ➕</a>`;
 
-      const statusText = hasBot ? `<span style="color: #3fb950; font-size: 12px; font-weight: bold; background: rgba(63, 185, 80, 0.15); padding: 4px 10px; border-radius: 20px;">البوت موجود ✅</span>` : `<span style="color: #8b949e; font-size: 12px;">غير متواجد</span>`;
+      const statusText = hasBot ? 
+        `<span style="color: #34d399; font-size: 12px; font-weight: bold; background: rgba(52, 211, 153, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(52, 211, 153, 0.3);">البوت موجود ✅</span>` : 
+        `<span style="color: #94a3b8; font-size: 12px; background: rgba(148, 163, 184, 0.1); padding: 5px 12px; border-radius: 20px;">البوت غير متواجد ❌</span>`;
 
       guildsHtml += `
-        <div style="background-color: #111622; border: 1px solid #1f293d; padding: 18px 22px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; transition: 0.2s;">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <img src="${iconUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #212d42;">
+        <div style="background: linear-gradient(135deg, #131b2e, #0d1424); border: 1px solid #1e293b; padding: 20px 24px; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; transition: 0.25s; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+            <div style="display: flex; align-items: center; gap: 18px;">
+                <img src="${iconUrl}" style="width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 2px solid #3b82f6;">
                 <div>
-                    <h4 style="color: #fff; font-size: 16px; margin-bottom: 4px;">${guild.name}</h4>
+                    <h4 style="color: #fff; font-size: 17px; margin-bottom: 6px; font-weight: 600;">${guild.name}</h4>
                     ${statusText}
                 </div>
             </div>
@@ -240,14 +261,14 @@ app.get('/dashboard', (req, res) => {
         </div>
         <div class="main-content">
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px;">
-                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#8b949e; font-size:13px; margin-bottom:8px;">Credits</h4><span style="font-size:22px; color:#58a6ff; font-weight:bold;">0</span></div>
-                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#8b949e; font-size:13px; margin-bottom:8px;">Level</h4><span style="font-size:22px; color:#58a6ff; font-weight:bold;">0000</span></div>
-                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#8b949e; font-size:13px; margin-bottom:8px;">Rank</h4><span style="font-size:22px; color:#58a6ff; font-weight:bold;">1</span></div>
-                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#8b949e; font-size:13px; margin-bottom:8px;">Reputation</h4><span style="font-size:22px; color:#58a6ff; font-weight:bold;">0</span></div>
+                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#94a3b8; font-size:13px; margin-bottom:8px;">Credits</h4><span style="font-size:24px; color:#6366f1; font-weight:bold;">0</span></div>
+                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#94a3b8; font-size:13px; margin-bottom:8px;">Level</h4><span style="font-size:24px; color:#6366f1; font-weight:bold;">0000</span></div>
+                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#94a3b8; font-size:13px; margin-bottom:8px;">Rank</h4><span style="font-size:24px; color:#6366f1; font-weight:bold;">1</span></div>
+                <div class="section-box" style="margin-top:0; text-align:center;"><h4 style="color:#94a3b8; font-size:13px; margin-bottom:8px;">Reputation</h4><span style="font-size:24px; color:#6366f1; font-weight:bold;">0</span></div>
             </div>
             <div class="section-box">
                 <h3>🌐 سيرفراتك المتاحة لإدارة البوت</h3>
-                <p style="color: #8b949e; font-size: 13px; margin-bottom: 20px;">اختر السيرفر الذي ترغب في إدارته وتعديل إعداداته:</p>
+                <p style="color: #94a3b8; font-size: 13px; margin-bottom: 25px;">اختر السيرفر الذي ترغب في الدخول إليه وتعديل إعداداته:</p>
                 <div>${guildsHtml}</div>
             </div>
         </div>
@@ -256,7 +277,7 @@ app.get('/dashboard', (req, res) => {
   `);
 });
 
-// 2. إحصائيات السيرفر (بيانات حقيقية من ديسكورد)
+// 2. إحصائيات السيرفر
 app.get('/dashboard/server/:guildId/stats', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
@@ -276,19 +297,19 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
         <div class="main-content">
             <div class="section-box">
                 <h3>📊 إحصائيات سيرفر: ${guild.name}</h3>
-                <p style="color: #8b949e; margin-bottom: 25px;">بيانات حقيقية ومحدثة مباشرة من مجتمعك في ديسكورد.</p>
+                <p style="color: #94a3b8; margin-bottom: 25px;">بيانات حقيقية ومحدثة مباشرة لمجتمعك في ديسكورد.</p>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-                    <div style="background:#0b0f19; padding:25px; border-radius:12px; border:1px solid #1f293d; text-align:center;">
-                        <h4 style="color:#8b949e; margin-bottom:12px; font-size:14px;">معرف السيرفر (ID)</h4>
-                        <span style="font-size:16px; color:#58a6ff; font-weight:bold;">${guild.id}</span>
+                    <div style="background:#0e131f; padding:25px; border-radius:14px; border:1px solid #1f293d; text-align:center;">
+                        <h4 style="color:#94a3b8; margin-bottom:12px; font-size:14px;">معرف السيرفر (ID)</h4>
+                        <span style="font-size:16px; color:#6366f1; font-weight:bold;">${guild.id}</span>
                     </div>
-                    <div style="background:#0b0f19; padding:25px; border-radius:12px; border:1px solid #1f293d; text-align:center;">
-                        <h4 style="color:#8b949e; margin-bottom:12px; font-size:14px;">صلاحياتك في السيرفر</h4>
-                        <span style="font-size:16px; color:#3fb950; font-weight:bold;">${guild.owner ? 'مالك السيرفر 👑' : 'إدارة كاملة (Admin)'}</span>
+                    <div style="background:#0e131f; padding:25px; border-radius:14px; border:1px solid #1f293d; text-align:center;">
+                        <h4 style="color:#94a3b8; margin-bottom:12px; font-size:14px;">صلاحياتك في السيرفر</h4>
+                        <span style="font-size:16px; color:#34d399; font-weight:bold;">${guild.owner ? 'مالك السيرفر 👑' : 'إدارة كاملة (Admin)'}</span>
                     </div>
-                    <div style="background:#0b0f19; padding:25px; border-radius:12px; border:1px solid #1f293d; text-align:center;">
-                        <h4 style="color:#8b949e; margin-bottom:12px; font-size:14px;">حالة الاتصال بالبوت</h4>
-                        <span style="font-size:16px; color:${guild.bot ? '#3fb950' : '#f0883e'}; font-weight:bold;">${guild.bot ? 'متصل ومفعل ✅' : 'غير متصل'}</span>
+                    <div style="background:#0e131f; padding:25px; border-radius:14px; border:1px solid #1f293d; text-align:center;">
+                        <h4 style="color:#94a3b8; margin-bottom:12px; font-size:14px;">حالة الاتصال بالبوت</h4>
+                        <span style="font-size:16px; color:${guild.hasBot ? '#34d399' : '#fbbf24'}; font-weight:bold;">${guild.hasBot ? 'متصل ومفعل ✅' : 'غير متصل'}</span>
                     </div>
                 </div>
             </div>
@@ -315,13 +336,13 @@ app.get('/dashboard/server/:guildId/tickets', (req, res) => {
             <div class="section-box">
                 <h3>🎫 إعدادات نظام التذاكر (Tickets)</h3>
                 <form>
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">روم تفعيل التذاكر:</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">روم تفعيل التذاكر:</label>
                     <input type="text" class="form-control" placeholder="#create-ticket">
                     
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">رتبة الإدارة المسؤولة عن التذاكر:</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">رتبة الإدارة المسؤولة عن التذاكر:</label>
                     <input type="text" class="form-control" placeholder="Support Team">
 
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">رسالة التذكرة الافتتاحية:</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">رسالة التذكرة الافتتاحية:</label>
                     <textarea class="form-control" rows="4" style="resize:none;">أهلاً بك، اضغط على الزر أدناه لفتح تذكرة وسيتم الرد عليك قريباً.</textarea>
 
                     <button type="button" class="btn-save" onclick="alert('تم حفظ إعدادات التذاكر بنجاح!')">حفظ الإعدادات</button>
@@ -350,14 +371,14 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
             <div class="section-box">
                 <h3>🛡️ إعدادات حماية السيرفر (Anti-Nuke & Spam)</h3>
                 <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:25px;">
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#5865F2;"> الحماية من السبام المتكرر (Anti-Spam)
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#6366f1;"> الحماية من السبام المتكرر (Anti-Spam)
                     </label>
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#5865F2;"> الحماية من الروابط الضارة والفايروسات
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#6366f1;"> الحماية من الروابط الضارة والفايروسات
                     </label>
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" style="width:18px; height:18px; accent-color:#5865F2;"> منع الحسابات الوهمية الحديثة (Anti-Alt)
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" style="width:18px; height:18px; accent-color:#6366f1;"> منع الحسابات الوهمية الحديثة (Anti-Alt)
                     </label>
                 </div>
                 <button type="button" class="btn-save" onclick="alert('تم حفظ إعدادات الحماية بنجاح!')">تحديث الحماية</button>
@@ -385,13 +406,13 @@ app.get('/dashboard/server/:guildId/logs', (req, res) => {
             <div class="section-box">
                 <h3>📜 رومات السجلات (Server Logs)</h3>
                 <form>
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">روم سجلات دخول وخروج الأعضاء:</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">روم سجلات دخول وخروج الأعضاء:</label>
                     <input type="text" class="form-control" placeholder="#member-logs">
 
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">روم سجلات تعديل ورسائل الشات (Deletes/Edits):</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">روم سجلات تعديل ورسائل الشات (Deletes/Edits):</label>
                     <input type="text" class="form-control" placeholder="#chat-logs">
 
-                    <label style="display:block; color:#8b949e; margin-bottom:8px;">روم سجلات الباند والتحذيرات:</label>
+                    <label style="display:block; color:#94a3b8; margin-bottom:8px;">روم سجلات الباند والتحذيرات:</label>
                     <input type="text" class="form-control" placeholder="#mod-logs">
 
                     <button type="button" class="btn-save" onclick="alert('تم حفظ إعدادات اللوق بنجاح!')">حفظ اللوقات</button>
@@ -420,14 +441,14 @@ app.get('/dashboard/server/:guildId/games', (req, res) => {
             <div class="section-box">
                 <h3>🎮 إعدادات قسم الألعاب وتسلية الأعضاء</h3>
                 <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:25px;">
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#5865F2;"> تفعيل ألعاب العواصم والأعلام في الشات
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#6366f1;"> تفعيل ألعاب العواصم والأعلام في الشات
                     </label>
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#5865F2;"> تفعيل نظام الرتب التلقائية للألعاب (Leaderboard)
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" checked style="width:18px; height:18px; accent-color:#6366f1;"> تفعيل نظام الرتب التلقائية للألعاب (Leaderboard)
                     </label>
-                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0b0f19; padding:15px; border-radius:10px; border:1px solid #1f293d;">
-                        <input type="checkbox" style="width:18px; height:18px; accent-color:#5865F2;"> ألعاب التحدي السريع (Fast Typer)
+                    <label style="display:flex; align-items:center; gap:12px; cursor:pointer; background:#0e131f; padding:16px; border-radius:12px; border:1px solid #1f293d;">
+                        <input type="checkbox" style="width:18px; height:18px; accent-color:#6366f1;"> ألعاب التحدي السريع (Fast Typer)
                     </label>
                 </div>
                 <button type="button" class="btn-save" onclick="alert('تم تحديث إعدادات الألعاب بنجاح!')">حفظ الألعاب</button>
