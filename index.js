@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const express = require('express');
 const session = require('express-session');
 const app = express();
@@ -10,13 +10,61 @@ const BOT_TOKEN = process.env.TOKEN || process.env.BOT_TOKEN || process.env.DISC
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
-// إعداد ديسكورد كلايت
+// إعداد ديسكورد كلايت مع الصلاحيات والـ Intents اللازمة
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
-client.once('ready', () => {
+// تشغيل البوت وتسجيل الأوامر الوهمية / التفاعلية
+client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
+    
+    // تسجيل أمر تجريبي /help أو /ping داخل السيرفرات
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('help')
+            .setDescription('عرض معلومات البوت ورابط لوحة التحكم'),
+        new SlashCommandBuilder()
+            .setName('ping')
+            .setDescription('فحص سرعة استجابة البوت')
+    ].map(command => command.toJSON());
+
+    const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
+    try {
+        console.log('🔄 جاري تحديث أوامر السلاش (Slash Commands)...');
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: commands },
+        );
+        console.log('✅ تم تسجيل الأوامر بنجاح!');
+    } catch (error) {
+        console.error('خطأ في تسجيل الأوامر:', error);
+    }
+});
+
+// التفاعل مع أوامر السلاش
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'help') {
+        await interaction.reply({ 
+            content: `✨ أهلاً بك! يمكنك إدارة السيرفر الخاص بك عبر لوحة التحكم الرسمية:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, 
+            ephemeral: true 
+        });
+    }
+
+    if (interaction.commandName === 'ping') {
+        const latency = Date.now() - interaction.createdTimestamp;
+        await interaction.reply({ 
+            content: `🏓 Pong! سرعة الاستجابة: ${latency}ms`, 
+            ephemeral: true 
+        });
+    }
 });
 
 if (BOT_TOKEN) {
@@ -38,7 +86,6 @@ app.use(session({
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 
-// الصفحة الرئيسية بتصميم عصري
 app.get('/', (req, res) => {
     const isLoggedIn = req.session.user ? true : false;
     res.send(`
@@ -94,7 +141,6 @@ app.get('/', (req, res) => {
   `);
 });
 
-// مصادقة ديسكورد وجلب السيرفرات مع التحقق الفعلي من وجود البوت
 app.get('/callback', async (req, res) => {
     const code = req.query.code;
     if (!code) return res.redirect('/');
@@ -127,10 +173,8 @@ app.get('/callback', async (req, res) => {
 
         req.session.user = userData;
         
-        // التحقق الصحيح من صلاحية الأدمن ووجود البوت في الكاش أو عن طريق ديسكورد API
         req.session.guilds = guildsData.map(guild => {
             const isAdmin = (guild.permissions & 0x8) === 0x8 || (guild.permissions & 0x20) === 0x20 || guild.owner;
-            // فحص دقيق هل البوت موجود داخل هذا السيرفر فعلياً عبر الكاش
             const hasBot = client.guilds.cache.has(guild.id);
             return {
                 ...guild,
@@ -146,7 +190,6 @@ app.get('/callback', async (req, res) => {
     }
 });
 
-// التصميم الموحد للوحة التحكم والصفحات الداخلية
 const globalStyle = `
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
@@ -197,15 +240,18 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
   `;
 }
 
-// صفحة اختيار السيرفرات مع العرض الواضح لحالة البوت
 app.get('/dashboard', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const user = req.session.user;
-    const guilds = req.session.guilds || [];
+    
+    const guilds = (req.session.guilds || []).map(guild => ({
+        ...guild,
+        hasBot: client.guilds.cache.has(guild.id)
+    }));
+
     const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
     const adminGuilds = guilds.filter(guild => guild.isAdmin);
-    // ترتيب السيرفرات بحيث التي فيها البوت تظهر أولاً
     adminGuilds.sort((a, b) => (b.hasBot ? 1 : 0) - (a.hasBot ? 1 : 0));
 
     let guildsHtml = '';
@@ -274,7 +320,6 @@ app.get('/dashboard', (req, res) => {
   `);
 });
 
-// إحصائيات السيرفر
 app.get('/dashboard/server/:guildId/stats', async (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
@@ -283,7 +328,7 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
     const guild = guilds.find(g => g.id === guildId);
     const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-    if (!guild || !guild.hasBot) return res.redirect('/dashboard');
+    if (!guild || !client.guilds.cache.has(guildId)) return res.redirect('/dashboard');
 
     res.send(`
     <!DOCTYPE html>
@@ -315,7 +360,6 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
   `);
 });
 
-// نظام التذاكر
 app.get('/dashboard/server/:guildId/tickets', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
@@ -324,7 +368,7 @@ app.get('/dashboard/server/:guildId/tickets', (req, res) => {
     const guild = guilds.find(g => g.id === guildId);
     const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-    if (!guild || !guild.hasBot) return res.redirect('/dashboard');
+    if (!guild || !client.guilds.cache.has(guildId)) return res.redirect('/dashboard');
 
     res.send(`
     <!DOCTYPE html>
@@ -354,11 +398,9 @@ app.get('/dashboard/server/:guildId/tickets', (req, res) => {
 app.post('/dashboard/server/:guildId/tickets', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
-    console.log(`تم حفظ التذاكر للسيرفر: ${guildId}`, req.body);
     res.redirect(`/dashboard/server/${guildId}/tickets?success=true`);
 });
 
-// نظام الحماية
 app.get('/dashboard/server/:guildId/protection', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
@@ -367,7 +409,7 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
     const guild = guilds.find(g => g.id === guildId);
     const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-    if (!guild || !guild.hasBot) return res.redirect('/dashboard');
+    if (!guild || !client.guilds.cache.has(guildId)) return res.redirect('/dashboard');
 
     res.send(`
     <!DOCTYPE html>
@@ -401,7 +443,6 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
 app.post('/dashboard/server/:guildId/protection', (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
-    console.log(`تم حفظ الحماية للسيرفر: ${guildId}`, req.body);
     res.redirect(`/dashboard/server/${guildId}/protection?success=true`);
 });
 
