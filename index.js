@@ -10,7 +10,6 @@ const BOT_TOKEN = process.env.TOKEN || process.env.BOT_TOKEN || process.env.DISC
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
-// إعداد ديسكورد كلايت مع الصلاحيات والـ Intents الكاملة
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -21,43 +20,33 @@ const client = new Client({
     ]
 });
 
-// تشغيل البوت وتسجيل الأوامر
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
-    
     const commands = [
-        new SlashCommandBuilder()
-            .setName('help')
-            .setDescription('عرض معلومات البوت ورابط لوحة التحكم')
+        new SlashCommandBuilder().setName('help').setDescription('عرض معلومات البوت ورابط لوحة التحكم')
     ].map(command => command.toJSON());
 
     const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
     try {
-        await rest.put(
-            Routes.applicationCommands(CLIENT_ID),
-            { body: commands },
-        );
+        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
         console.log('✅ تم تسجيل أوامر البوت بنجاح!');
     } catch (error) {
         console.error('خطأ في تسجيل الأوامر:', error);
     }
 });
 
-// 1. نظام الحماية (Anti-Bot: طرد أي بوت غير مصرح له يدخل السيرفر)
+// حماية البوتات الغير مرغوب فيها
 client.on('guildMemberAdd', async member => {
-    if (member.user.bot) {
+    if (member.user.bot && member.id !== CLIENT_ID) {
         try {
-            if (member.id !== CLIENT_ID) {
-                await member.kick('حماية السيرفر: ممنوع دخول أي بوتات غير مصرح بها.');
-                console.log(`🛡️ تم طرد البوت الغير مرغوب فيه: ${member.user.tag} من سيرفر ${member.guild.name}`);
-            }
+            await member.kick('حماية السيرفر: ممنوع دخول أي بوتات غير مصرح بها.');
         } catch (err) {
             console.error('فشل طرد البوت:', err);
         }
     }
 });
 
-// 2. نظام السجلات (Logs: مراقبة حذف الرسائل)
+// نظام السجلات (Logs)
 client.on('messageDelete', async message => {
     if (!message.guild || message.author?.bot) return;
     try {
@@ -69,96 +58,65 @@ client.on('messageDelete', async message => {
                 .addFields(
                     { name: 'المستخدم:', value: `${message.author.tag} (<@${message.author.id}>)`, inline: true },
                     { name: 'الروم:', value: `<#${message.channel.id}>`, inline: true },
-                    { name: 'محتوى الرسالة:', value: message.content || 'لا يوجد محتوى (صورة أو مرفق)' }
+                    { name: 'محتوى الرسالة:', value: message.content || 'لا يوجد محتوى' }
                 )
                 .setTimestamp();
             await logChannel.send({ embeds: [embed] });
         }
     } catch (e) {
-        console.error('خطأ في إرسال اللوق:', e);
+        console.error(e);
     }
 });
 
-// 3. التفاعل مع الأزرار والأوامر
+// تفاعل الأزرار والتذاكر
 client.on('interactionCreate', async interaction => {
-    if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'help') {
-            await interaction.reply({ 
-                content: `✨ أهلاً بك! يمكنك إدارة وتعديل إعدادات سيرفرك عبر لوحة التحكم المرتبطة:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, 
-                ephemeral: true 
-            });
-        }
-    } 
-    
-    // نظام أزرار التذاكر الحقيقي داخل الديسكورد
-    else if (interaction.isButton()) {
+    if (interaction.isChatInputCommand() && interaction.commandName === 'help') {
+        await interaction.reply({ content: `✨ أهلاً بك! يمكنك إدارة سيرفرك عبر اللوحة:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, ephemeral: true });
+    } else if (interaction.isButton()) {
         if (interaction.customId === 'create_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
-
             try {
                 const ticketChannel = await guild.channels.create({
                     name: `ticket-${user.username}`,
                     type: ChannelType.GuildText,
                     permissionOverwrites: [
-                        {
-                            id: guild.id,
-                            deny: [PermissionsBitField.Flags.ViewChannel],
-                        },
-                        {
-                            id: user.id,
-                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
-                        },
-                        {
-                            id: client.user.id,
-                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageChannels],
-                        }
+                        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                        { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                        { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageChannels] }
                     ],
                 });
 
                 const closeRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('close_ticket')
-                        .setLabel('🔒 إغلاق التذكرة')
-                        .setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 إغلاق التذكرة').setStyle(ButtonStyle.Danger)
                 );
 
                 const welcomeEmbed = new EmbedBuilder()
                     .setTitle(`🎫 تذكرة العضو: ${user.username}`)
-                    .setDescription('أهلاً بك! يرجى كتابة مشكلتك أو طلبك بالتفصيل، وسيقوم فريق الإدارة بالرد عليك قريباً.')
+                    .setDescription('يرجى كتابة مشكلتك أو طلبك بالتفصيل، وسيتم الرد عليك قريباً.')
                     .setColor('#10b981');
 
                 await ticketChannel.send({ content: `<@${user.id}>`, embeds: [welcomeEmbed], components: [closeRow] });
                 await interaction.reply({ content: `✅ تم إنشاء تذكرتك بنجاح: <#${ticketChannel.id}>`, ephemeral: true });
             } catch (err) {
-                console.error(err);
-                await interaction.reply({ content: '❌ حدث خطأ أثناء إنشاء التذكرة، تأكد من صلاحيات البوت.', ephemeral: true });
+                await interaction.reply({ content: '❌ حدث خطأ، تأكد من صلاحيات البوت.', ephemeral: true });
             }
-        } 
-        
-        else if (interaction.customId === 'close_ticket') {
+        } else if (interaction.customId === 'close_ticket') {
             await interaction.reply({ content: '🔒 جاري إغلاق وحذف التذكرة خلال 5 ثواني...' });
             setTimeout(async () => {
-                try {
-                    await interaction.channel.delete();
-                } catch (e) {
-                    console.error('فشل حذف روم التذكرة:', e);
-                }
+                try { await interaction.channel.delete(); } catch (e) {}
             }, 5000);
         }
     }
 });
 
 if (BOT_TOKEN) {
-    client.login(BOT_TOKEN).catch(err => {
-        console.error('فشل تسجيل دخول البوت تأكد من صحة الـ Token:', err.message);
-    });
+    client.login(BOT_TOKEN).catch(err => console.error('فشل تسجيل دخول البوت:', err.message));
 }
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
 app.use(session({
     secret: 'my_super_secret_key_123',
     resave: false,
@@ -168,26 +126,27 @@ app.use(session({
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 
+// تصميم اللوحة والقوائم الجانبية
 const globalStyle = `
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-    body { background-color: #0b0f19; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; background-image: radial-gradient(circle at 100% 0%, #151c30 0%, #0b0f19 50%); }
-    .sidebar { width: 260px; background: rgba(13, 18, 30, 0.95); border-left: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: space-between; padding: 20px 15px; box-shadow: -10px 0 30px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
-    .user-profile { display: flex; align-items: center; gap: 10px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .user-profile img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #6366f1; object-fit: cover; }
-    .user-info h3 { font-size: 13px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
-    .user-info span { font-size: 11px; color: #94a3b8; }
-    .nav-menu { list-style: none; margin-top: 15px; display: flex; flex-direction: column; gap: 6px; }
-    .nav-menu li a { display: flex; align-items: center; gap: 10px; padding: 10px 14px; color: #94a3b8; text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: 600; transition: all 0.3s ease; }
-    .nav-menu li a:hover, .nav-menu li a.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
-    .nav-menu li.bot-add a { background: linear-gradient(135deg, #10b981, #059669); color: #fff; text-align: center; justify-content: center; margin-top: 10px; font-size: 12px; }
-    .nav-menu li.logout a { background: rgba(239, 68, 68, 0.1); color: #f87171; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.2); margin-top: 10px; }
-    .main-content { flex: 1; padding: 35px; overflow-y: auto; background: radial-gradient(circle at top right, #131b2e, #0b0f19); }
-    .section-box { background: rgba(19, 27, 46, 0.7); border: 1px solid rgba(255,255,255,0.06); padding: 25px; border-radius: 16px; margin-top: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); backdrop-filter: blur(10px); }
-    .section-box h3 { margin-bottom: 20px; font-size: 18px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; display: flex; align-items: center; gap: 10px; font-weight: 700; }
-    .form-control { width: 100%; padding: 12px 16px; background: #080c14; border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 10px; margin-bottom: 15px; font-size: 13px; }
+    body { background-color: #0b0f19; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 280px; background: #0d121e; border-left: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: -5px 0 20px rgba(0,0,0,0.6); }
+    .user-profile { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .user-profile img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #6366f1; object-fit: cover; }
+    .user-info h3 { font-size: 14px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .user-info span { font-size: 12px; color: #94a3b8; }
+    .nav-menu { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .nav-menu li a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #94a3b8; text-decoration: none; border-radius: 12px; font-size: 14px; font-weight: 600; transition: all 0.3s; }
+    .nav-menu li a:hover, .nav-menu li a.active { background: #6366f1; color: #fff; }
+    .nav-menu li.bot-add a { background: #10b981; color: #fff; justify-content: center; margin-top: 15px; }
+    .nav-menu li.logout a { background: rgba(239, 68, 68, 0.15); color: #f87171; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 15px; }
+    .main-content { flex: 1; padding: 40px; overflow-y: auto; background: #0b0f19; }
+    .section-box { background: #131b2e; border: 1px solid rgba(255,255,255,0.08); padding: 30px; border-radius: 18px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .section-box h3 { margin-bottom: 20px; font-size: 20px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 15px; display: flex; align-items: center; gap: 12px; }
+    .form-control { width: 100%; padding: 14px 18px; background: #080c14; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 12px; margin-bottom: 20px; font-size: 14px; }
     .form-control:focus { border-color: #6366f1; outline: none; }
-    .btn-save { background: linear-gradient(135deg, #10b981, #059669); color: #fff; padding: 10px 24px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn-save { background: #10b981; color: #fff; padding: 12px 28px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 15px; }
 `;
 
 function getServerSidebar(guildId, activePage, avatarUrl, username) {
@@ -203,14 +162,14 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
             </div>
             <ul class="nav-menu">
                 <li><a href="/dashboard">⬅ العودة للقائمة</a></li>
-                <li><a href="/dashboard/server/${guildId}/stats" class="${activePage === 'stats' ? 'active' : ''}">📊 الإحصائيات</a></li>
-                <li><a href="/dashboard/server/${guildId}/tickets" class="${activePage === 'tickets' ? 'active' : ''}">🎫 التذاكر</a></li>
-                <li><a href="/dashboard/server/${guildId}/protection" class="${activePage === 'protection' ? 'active' : ''}">🛡️ الحماية</a></li>
-                <li class="bot-add"><a href="${BOT_INVITE_URL}" target="_blank">➕ إضافة البوت</a></li>
+                <li><a href="/dashboard/server/${guildId}/stats" class="${activePage === 'stats' ? 'active' : ''}">📊 نظرة عامة</a></li>
+                <li><a href="/dashboard/server/${guildId}/tickets" class="${activePage === 'tickets' ? 'active' : ''}">🎫 إرسال التذاكر</a></li>
+                <li><a href="/dashboard/server/${guildId}/protection" class="${activePage === 'protection' ? 'active' : ''}">🛡️ الحماية واللوق</a></li>
+                <li class="bot-add"><a href="${BOT_INVITE_URL}" target="_blank">➕ إضافة البوت للسيرفر</a></li>
             </ul>
         </div>
         <ul class="nav-menu" style="margin-top:0;">
-            <li class="logout"><a href="/">🚪 خروج</a></li>
+            <li class="logout"><a href="/">🚪 تسجيل خروج</a></li>
         </ul>
     </div>
   `;
@@ -219,35 +178,28 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
 app.get('/', (req, res) => {
     const isLoggedIn = req.session.user ? true : false;
     res.send(`
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head><meta charset="UTF-8"><title>لوحة التحكم - Discord Bot</title>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>لوحة التحكم</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-        body { background: #0b0f19; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background-color: rgba(11, 15, 25, 0.8); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; color: #fff; }
-        .logo-icon { background: linear-gradient(135deg, #6366f1, #a855f7); width: 35px; height: 35px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-        .login-btn { background: #5865F2; color: white; padding: 10px 22px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 13px; }
-        .hero { text-align: center; padding: 60px 20px; max-width: 800px; margin: auto; }
-        .hero h1 { font-size: 42px; font-weight: 900; margin-bottom: 15px; color: #ffffff; }
-        .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 14px 30px; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; }
-        footer { text-align: center; padding: 20px; color: #64748b; font-size: 12px; }
-    </style>
-    </head>
+        body { background: #0b0f19; color: #fff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background: #0d121e; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .login-btn { background: #5865F2; color: white; padding: 12px 25px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .hero { text-align: center; padding: 80px 20px; max-width: 850px; margin: auto; }
+        .hero h1 { font-size: 45px; font-weight: 900; margin-bottom: 20px; }
+        .btn-primary { background: #6366f1; color: white; padding: 16px 35px; border-radius: 14px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; }
+    </style></head>
     <body>
         <nav>
-            <div class="logo-area"><div class="logo-icon">⚡</div><span>Bot Manager</span></div>
-            <div>${isLoggedIn ? `<a href="/dashboard" class="login-btn" style="background:#10b981;">لوحة التحكم</a>` : `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول</a>`}</div>
+            <div style="font-weight: 900; font-size: 20px;">⚡ Bot Manager</div>
+            <div>${isLoggedIn ? `<a href="/dashboard" class="login-btn" style="background:#10b981;">لوحة التحكم</a>` : `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول بديسكورد</a>`}</div>
         </nav>
         <div class="hero">
-            <h1>إدارة التذاكر، الحماية، واللوق <span>من الموقع مباشرة</span></h1>
-            <p style="color:#94a3b8; margin-bottom:30px;">اربط بوتك باللوحة وأرسل بانل التذاكر لسيرفرك بضغطة زر واحدة.</p>
+            <h1>إدارة التذاكر والحماية <span>بكل سهولة</span></h1>
+            <p style="color:#94a3b8; margin-bottom:30px; font-size:16px;">تحكم كامل بسيرفرك، أرسل بانل التذاكر، واحمِ سيرفرك من البوتات الوهمية.</p>
             <a href="${BOT_INVITE_URL}" target="_blank" class="btn-primary">إضافة البوت لسيرفرك 🚀</a>
         </div>
-        <footer>جميع الحقوق محفوظة © 2026</footer>
-    </body>
-    </html>
+        <footer style="text-align:center; padding:20px; color:#64748b; font-size:13px;">جميع الحقوق محفوظة © 2026</footer>
+    </body></html>
   `);
 });
 
@@ -271,7 +223,6 @@ app.get('/callback', async (req, res) => {
 
         res.redirect('/dashboard');
     } catch (err) {
-        console.error(err);
         res.send('حدث خطأ أثناء تسجيل الدخول.');
     }
 });
@@ -291,16 +242,16 @@ app.get('/dashboard', (req, res) => {
         const hasBot = client.guilds.cache.has(guild.id);
         
         const actionButton = hasBot ? 
-            `<a href="/dashboard/server/${guild.id}/stats" style="background: #3b82f6; color: #fff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-size: 12px; font-weight: 700;">إدارة البوت ⚡</a>` :
-            `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: #10b981; color: #fff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-size: 12px; font-weight: 700;">إضافة البوت ➕</a>`;
+            `<a href="/dashboard/server/${guild.id}/stats" style="background: #3b82f6; color: #fff; padding: 12px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700;">إدارة البوت ⚡</a>` :
+            `<a href="https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&scope=bot&guild_id=${guild.id}" target="_blank" style="background: #10b981; color: #fff; padding: 12px 22px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 700;">إضافة البوت ➕</a>`;
 
-        const statusBadge = hasBot ? `<span style="color: #34d399; font-size: 11px;">البوت يعمل في السيرفر ✅</span>` : `<span style="color: #f87171; font-size: 11px;">البوت غير مضاف ❌</span>`;
+        const statusBadge = hasBot ? `<span style="color: #34d399; font-size: 13px; font-weight: 600;">البوت متصل ويعمل ✅</span>` : `<span style="color: #f87171; font-size: 13px; font-weight: 600;">البوت غير مضاف ❌</span>`;
 
         guildsHtml += `
-            <div style="background: rgba(15, 22, 38, 0.8); border: 1px solid rgba(255,255,255,0.06); padding: 16px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="${iconUrl}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
-                    <div><h4 style="color: #fff; font-size: 15px; margin-bottom: 4px;">${guild.name}</h4>${statusBadge}</div>
+            <div style="background: #0d121e; border: 1px solid rgba(255,255,255,0.08); padding: 20px 25px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 18px;">
+                    <img src="${iconUrl}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.1);">
+                    <div><h4 style="color: #fff; font-size: 16px; margin-bottom: 6px;">${guild.name}</h4>${statusBadge}</div>
                 </div>
                 ${actionButton}
             </div>
@@ -308,9 +259,7 @@ app.get('/dashboard', (req, res) => {
     });
 
     res.send(`
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head><meta charset="UTF-8"><title>اختر السيرفر</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>اختر السيرفر</title><style>${globalStyle}</style></head>
     <body>
         <div class="sidebar">
             <div>
@@ -320,8 +269,7 @@ app.get('/dashboard', (req, res) => {
             <ul class="nav-menu" style="margin-top:0;"><li class="logout"><a href="/">🚪 خروج</a></li></ul>
         </div>
         <div class="main-content"><div class="section-box"><h3>🌐 سيرفراتك وإدارة الأنظمة</h3><div>${guildsHtml}</div></div></div>
-    </body>
-    </html>
+    </body></html>
   `);
 });
 
@@ -333,17 +281,17 @@ app.get('/dashboard/server/:guildId/stats', (req, res) => {
     if (!guild || !client.guilds.cache.has(guildId)) return res.redirect('/dashboard');
 
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>إحصائيات</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>نظرة عامة</title><style>${globalStyle}</style></head>
     <body>
         ${getServerSidebar(guildId, 'stats', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
             <div class="section-box">
-                <h3>📊 إحصائيات سيرفر: ${guild.name}</h3>
-                <p style="color:#94a3b8; font-size:14px; line-height:1.6;">
-                   البوت متصل ويعمل بجميع الأنظمة:<br>
-                   - 🎫 **التذاكر:** يمكنك إرسال بانل التذاكر مباشرة من خلال قسم "التذاكر" في القائمة الجانبية بالموقع.<br>
-                   - 🛡️ **حماية البوتات (Anti-Bot):** مفعل تلقائياً لطرد أي بوت غريب.<br>
-                   - 📋 **السجلات (Logs):** يسجل عمليات حذف الرسائل في روم <code style="color:#34d399;">logs</code>.
+                <h3>📊 حالة سيرفر: ${guild.name}</h3>
+                <p style="color:#94a3b8; font-size:15px; line-height:1.8;">
+                   البوت متصل بالسيرفر وجاهز تماماً:<br>
+                   - 🎫 **التذاكر:** انتقل لقسم (إرسال التذاكر) لنشر بانل التذاكر بروم محدد.<br>
+                   - 🛡️ **الحماية:** مفعلة تلقائياً ضد طرد البوتات الخارجية.<br>
+                   - 📋 **السجلات:** يراقب رسائل الحذف في روم <code style="color:#34d399;">logs</code>.
                 </p>
             </div>
         </div>
@@ -351,7 +299,6 @@ app.get('/dashboard/server/:guildId/stats', (req, res) => {
   `);
 });
 
-// صفحة التذاكر في الموقع (إرسال البانل للسيرفر مباشرة)
 app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
@@ -359,10 +306,9 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     const discordGuild = client.guilds.cache.get(guildId);
     
     let channelsHtml = '';
-    let successMsg = req.query.success ? '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #34d399; padding: 12px; border-radius: 10px; margin-bottom: 15px; font-size: 13px;">✅ تم إرسال لوحة التذاكر بنجاح إلى الروم المحدد في السيرفر!</div>' : '';
+    let successMsg = req.query.success ? '<div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 14px; border-radius: 12px; margin-bottom: 20px; font-size: 14px;">✅ تم إرسال لوحة التذاكر بنجاح إلى الروم المحدد في السيرفر!</div>' : '';
 
     if (discordGuild) {
-        // جلب الرومات النصية في السيرفر لكي يختار المستخدم أين يرسل البانل
         const textChannels = discordGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
         textChannels.forEach(c => {
             channelsHtml += `<option value="${c.id}"># ${c.name}</option>`;
@@ -370,20 +316,20 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     }
 
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>إدارة التذاكر</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>التذاكر</title><style>${globalStyle}</style></head>
     <body>
         ${getServerSidebar(guildId, 'tickets', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
             <div class="section-box">
-                <h3>🎫 إرسال لوحة التذاكر من الموقع</h3>
+                <h3>🎫 إرسال لوحة التذاكر إلى السيرفر</h3>
                 ${successMsg}
                 <form action="/dashboard/server/${guildId}/tickets/send" method="POST">
-                    <label style="font-size:13px; color:#94a3b8; display:block; margin-bottom:8px;">اختر الروم الذي تريد إرسال لوحة التذاكر فيه:</label>
+                    <label style="font-size:14px; color:#94a3b8; display:block; margin-bottom:10px;">اختر الروم النصي لإرسال لوحة التذاكر:</label>
                     <select name="channelId" class="form-control" required>
                         <option value="">-- اختر الروم --</option>
                         ${channelsHtml}
                     </select>
-                    <button type="submit" class="btn-save">إرسال لوحة التذاكر للسيرفر 🚀</button>
+                    <button type="submit" class="btn-save">إرسال لوحة التذاكر 🚀</button>
                 </form>
             </div>
         </div>
@@ -391,7 +337,6 @@ app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
   `);
 });
 
-// معالجة طلب إرسال التذاكر من الموقع إلى الديسكورد
 app.post('/dashboard/server/:guildId/tickets/send', async (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
@@ -403,10 +348,7 @@ app.post('/dashboard/server/:guildId/tickets/send', async (req, res) => {
             const targetChannel = discordGuild.channels.cache.get(channelId);
             if (targetChannel && targetChannel.isTextBased()) {
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('create_ticket')
-                        .setLabel('🎫 فتح تذكرة جديدة')
-                        .setStyle(ButtonStyle.Primary)
+                    new ButtonBuilder().setCustomId('create_ticket').setLabel('🎫 فتح تذكرة جديدة').setStyle(ButtonStyle.Primary)
                 );
 
                 const embed = new EmbedBuilder()
@@ -418,7 +360,7 @@ app.post('/dashboard/server/:guildId/tickets/send', async (req, res) => {
             }
         }
     } catch (err) {
-        console.error('خطأ في إرسال لوحة التذاكر:', err);
+        console.error(err);
     }
 
     res.redirect(`/dashboard/server/${guildId}/tickets?success=true`);
@@ -434,10 +376,10 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
         ${getServerSidebar(guildId, 'protection', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
             <div class="section-box">
-                <h3>🛡️ الحماية واللوق</h3>
-                <p style="color:#94a3b8; font-size:13px; line-height:1.6;">
-                   - حماية طرد البوتات الضارة مفعلة تلقائياً.<br>
-                   - نظام السجلات يراقب الحذف في روم باسم <code style="color:#34d399;">logs</code>.
+                <h3>🛡️ حماية السيرفر والسجلات</h3>
+                <p style="color:#94a3b8; font-size:14px; line-height:1.8;">
+                   - طرد البوتات غير المصرح بها مفعل تلقائياً.<br>
+                   - مراقبة الحذف تتم في روم باسم <code style="color:#34d399;">logs</code>.
                 </p>
             </div>
         </div>
