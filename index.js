@@ -10,7 +10,7 @@ const BOT_TOKEN = process.env.TOKEN || process.env.BOT_TOKEN || process.env.DISC
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
-// إعداد ديسكورد كلايت مع الصلاحيات والـ Intents الكاملة لتشغيل اللوق والحماية والتذاكر
+// إعداد ديسكورد كلايت مع الصلاحيات والـ Intents الكاملة
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -21,15 +21,11 @@ const client = new Client({
     ]
 });
 
-// تشغيل البوت وتسجيل الأوامر (مثل أمر إرسال بانل التذاكر)
+// تشغيل البوت وتسجيل الأوامر
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
     
     const commands = [
-        new SlashCommandBuilder()
-            .setName('setup-ticket')
-            .setDescription('إرسال رسالة أزرار التذاكر في الروم الحالي')
-            .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
         new SlashCommandBuilder()
             .setName('help')
             .setDescription('عرض معلومات البوت ورابط لوحة التحكم')
@@ -51,7 +47,6 @@ client.once('ready', async () => {
 client.on('guildMemberAdd', async member => {
     if (member.user.bot) {
         try {
-            // تحقق إذا كان البوت الجديد هو بوتك الأساسي أو تم استثنائه، وإلا قم بطرده لحماية السيرفر
             if (member.id !== CLIENT_ID) {
                 await member.kick('حماية السيرفر: ممنوع دخول أي بوتات غير مصرح بها.');
                 console.log(`🛡️ تم طرد البوت الغير مرغوب فيه: ${member.user.tag} من سيرفر ${member.guild.name}`);
@@ -62,11 +57,10 @@ client.on('guildMemberAdd', async member => {
     }
 });
 
-// 2. نظام السجلات (Logs: مراقبة حذف الرسائل وتعديلها وإرسالها للوق)
+// 2. نظام السجلات (Logs: مراقبة حذف الرسائل)
 client.on('messageDelete', async message => {
     if (!message.guild || message.author?.bot) return;
     try {
-        const auditLogs = await message.guild.fetchAuditLogs({ type: 72, limit: 1 });
         const logChannel = message.guild.channels.cache.find(c => c.name === 'logs' || c.name === 'سجلات-البوت');
         if (logChannel && logChannel.isTextBased()) {
             const embed = new EmbedBuilder()
@@ -85,56 +79,38 @@ client.on('messageDelete', async message => {
     }
 });
 
-// 3. التفاعل مع الأوامر والأزرار (التذاكر)
+// 3. التفاعل مع الأزرار والأوامر
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'setup-ticket') {
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket')
-                    .setLabel('🎫 فتح تذكرة جديدة')
-                    .setStyle(ButtonStyle.Primary)
-            );
-
-            const embed = new EmbedBuilder()
-                .setTitle('🎫 نظام الدعم الفني والتذاكر')
-                .setDescription('انقر على الزر أدناه لفتح تذكرة خاصة والتحدث مع الإدارة.')
-                .setColor('#6366f1');
-
-            await interaction.reply({ content: '✅ تم إرسال لوحة التذاكر بنجاح!', ephemeral: true });
-            await interaction.channel.send({ embeds: [embed], components: [row] });
-        }
-        
         if (interaction.commandName === 'help') {
             await interaction.reply({ 
-                content: `✨ أهلاً بك! يمكنك إدارة وتعديل إعدادات سيرفرك عبر لوحة التحكم:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, 
+                content: `✨ أهلاً بك! يمكنك إدارة وتعديل إعدادات سيرفرك عبر لوحة التحكم المرتبطة:\n🔗 ${REDIRECT_URI.replace('/callback', '')}`, 
                 ephemeral: true 
             });
         }
     } 
     
-    // نظام أزرار التذاكر الحقيقي
+    // نظام أزرار التذاكر الحقيقي داخل الديسكورد
     else if (interaction.isButton()) {
         if (interaction.customId === 'create_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
 
             try {
-                // إنشاء روم تذكرة جديد خاص بالعضو
                 const ticketChannel = await guild.channels.create({
                     name: `ticket-${user.username}`,
                     type: ChannelType.GuildText,
                     permissionOverwrites: [
                         {
-                            id: guild.id, // إخفاء الروم عن باقي الأعضاء
+                            id: guild.id,
                             deny: [PermissionsBitField.Flags.ViewChannel],
                         },
                         {
-                            id: user.id, // السماح لصاحب التذكرة بالدخول
+                            id: user.id,
                             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
                         },
                         {
-                            id: client.user.id, // السماح للبوت
+                            id: client.user.id,
                             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ManageChannels],
                         }
                     ],
@@ -192,7 +168,6 @@ app.use(session({
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 
-// تصميم اللوحة والقوائم المرتبطة بشكل أنيق
 const globalStyle = `
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
@@ -247,7 +222,6 @@ app.get('/', (req, res) => {
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head><meta charset="UTF-8"><title>لوحة التحكم - Discord Bot</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background: #0b0f19; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
@@ -267,8 +241,8 @@ app.get('/', (req, res) => {
             <div>${isLoggedIn ? `<a href="/dashboard" class="login-btn" style="background:#10b981;">لوحة التحكم</a>` : `<a href="${DISCORD_LOGIN_URL}" class="login-btn">تسجيل الدخول</a>`}</div>
         </nav>
         <div class="hero">
-            <h1>إدارة التذاكر، الحماية، واللوق <span>بكل احترافية</span></h1>
-            <p style="color:#94a3b8; margin-bottom:30px;">قم بإضافة البوت واستخدم أمر <code style="background:#1e293b; padding:4px 8px; border-radius:6px; color:#818cf8;">/setup-ticket</code> لتفعيل التذاكر مباشرة.</p>
+            <h1>إدارة التذاكر، الحماية، واللوق <span>من الموقع مباشرة</span></h1>
+            <p style="color:#94a3b8; margin-bottom:30px;">اربط بوتك باللوحة وأرسل بانل التذاكر لسيرفرك بضغطة زر واحدة.</p>
             <a href="${BOT_INVITE_URL}" target="_blank" class="btn-primary">إضافة البوت لسيرفرك 🚀</a>
         </div>
         <footer>جميع الحقوق محفوظة © 2026</footer>
@@ -366,10 +340,10 @@ app.get('/dashboard/server/:guildId/stats', (req, res) => {
             <div class="section-box">
                 <h3>📊 إحصائيات سيرفر: ${guild.name}</h3>
                 <p style="color:#94a3b8; font-size:14px; line-height:1.6;">
-                   البوت الآن متصل ومفعل بجميع الأنظمة:<br>
-                   - 🎫 **التذاكر:** استخدم أمر <code style="color:#818cf8;">/setup-ticket</code> في أي روم لإرسال لوحة التذاكر للأعضاء.<br>
-                   - 🛡️ **حماية البوتات (Anti-Bot):** مفعل تلقائياً لطرد أي بوت غير مرغوب فيه.<br>
-                   - 📋 **السجلات (Logs):** يقوم بمراقبة وحفظ رسائل الحذف في روم باسم <code style="color:#34d399;">logs</code>.
+                   البوت متصل ويعمل بجميع الأنظمة:<br>
+                   - 🎫 **التذاكر:** يمكنك إرسال بانل التذاكر مباشرة من خلال قسم "التذاكر" في القائمة الجانبية بالموقع.<br>
+                   - 🛡️ **حماية البوتات (Anti-Bot):** مفعل تلقائياً لطرد أي بوت غريب.<br>
+                   - 📋 **السجلات (Logs):** يسجل عمليات حذف الرسائل في روم <code style="color:#34d399;">logs</code>.
                 </p>
             </div>
         </div>
@@ -377,23 +351,77 @@ app.get('/dashboard/server/:guildId/stats', (req, res) => {
   `);
 });
 
-app.get('/dashboard/server/:guildId/tickets', (req, res) => {
+// صفحة التذاكر في الموقع (إرسال البانل للسيرفر مباشرة)
+app.get('/dashboard/server/:guildId/tickets', async (req, res) => {
     if (!req.session.user) return res.redirect('/');
     const { guildId } = req.params;
     const user = req.session.user;
+    const discordGuild = client.guilds.cache.get(guildId);
+    
+    let channelsHtml = '';
+    let successMsg = req.query.success ? '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #34d399; padding: 12px; border-radius: 10px; margin-bottom: 15px; font-size: 13px;">✅ تم إرسال لوحة التذاكر بنجاح إلى الروم المحدد في السيرفر!</div>' : '';
+
+    if (discordGuild) {
+        // جلب الرومات النصية في السيرفر لكي يختار المستخدم أين يرسل البانل
+        const textChannels = discordGuild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+        textChannels.forEach(c => {
+            channelsHtml += `<option value="${c.id}"># ${c.name}</option>`;
+        });
+    }
+
     res.send(`
-    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>التذاكر</title><style>${globalStyle}</style></head>
+    <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>إدارة التذاكر</title><style>${globalStyle}</style></head>
     <body>
         ${getServerSidebar(guildId, 'tickets', user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : '', user.username)}
         <div class="main-content">
             <div class="section-box">
-                <h3>🎫 نظام التذاكر التفاعلي</h3>
-                <p style="color:#94a3b8; font-size:13px; margin-bottom:15px;">لتفعيل لوحة التذاكر في السيرفر، اذهب إلى روم الكتابة واكتب الأمر التالي:</p>
-                <div style="background:#0b0f19; padding:15px; border-radius:10px; color:#34d399; font-weight:bold; font-size:15px;">/setup-ticket</div>
+                <h3>🎫 إرسال لوحة التذاكر من الموقع</h3>
+                ${successMsg}
+                <form action="/dashboard/server/${guildId}/tickets/send" method="POST">
+                    <label style="font-size:13px; color:#94a3b8; display:block; margin-bottom:8px;">اختر الروم الذي تريد إرسال لوحة التذاكر فيه:</label>
+                    <select name="channelId" class="form-control" required>
+                        <option value="">-- اختر الروم --</option>
+                        ${channelsHtml}
+                    </select>
+                    <button type="submit" class="btn-save">إرسال لوحة التذاكر للسيرفر 🚀</button>
+                </form>
             </div>
         </div>
     </body></html>
   `);
+});
+
+// معالجة طلب إرسال التذاكر من الموقع إلى الديسكورد
+app.post('/dashboard/server/:guildId/tickets/send', async (req, res) => {
+    if (!req.session.user) return res.redirect('/');
+    const { guildId } = req.params;
+    const { channelId } = req.body;
+
+    try {
+        const discordGuild = client.guilds.cache.get(guildId);
+        if (discordGuild) {
+            const targetChannel = discordGuild.channels.cache.get(channelId);
+            if (targetChannel && targetChannel.isTextBased()) {
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('create_ticket')
+                        .setLabel('🎫 فتح تذكرة جديدة')
+                        .setStyle(ButtonStyle.Primary)
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎫 نظام الدعم الفني والتذاكر')
+                    .setDescription('انقر على الزر أدناه لفتح تذكرة خاصة والتحدث مع الإدارة.')
+                    .setColor('#6366f1');
+
+                await targetChannel.send({ embeds: [embed], components: [row] });
+            }
+        }
+    } catch (err) {
+        console.error('خطأ في إرسال لوحة التذاكر:', err);
+    }
+
+    res.redirect(`/dashboard/server/${guildId}/tickets?success=true`);
 });
 
 app.get('/dashboard/server/:guildId/protection', (req, res) => {
@@ -408,8 +436,8 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
             <div class="section-box">
                 <h3>🛡️ الحماية واللوق</h3>
                 <p style="color:#94a3b8; font-size:13px; line-height:1.6;">
-                   - حماية طرد البوتات الضارة تعمل تلقائياً عند دخول أي بوت.<br>
-                   - لتفعيل السجلات، أنشئ روم نصي باسم <code style="color:#34d399;">logs</code> وسيقوم البوت بتسجيل الحذف فيه فوراً.
+                   - حماية طرد البوتات الضارة مفعلة تلقائياً.<br>
+                   - نظام السجلات يراقب الحذف في روم باسم <code style="color:#34d399;">logs</code>.
                 </p>
             </div>
         </div>
