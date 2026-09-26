@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 const CLIENT_ID = '1547723929617960960';
 const CLIENT_SECRET = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv';
+const BOT_TOKEN = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv'; // استبدله بتوكن البوت الصحيح إذا كان مختلفاً عن السيرفر سكريت
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1547723929617960960&permissions=8&integration_type=0&scope=bot';
 
@@ -76,7 +77,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// مسار الـ Callback لجلب بيانات المستخدم والسيرفرات
+// مسار الـ Callback مع الفحص الدقيق للسيرفرات التي يتواجد فيها البوت
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect('/');
@@ -107,27 +108,31 @@ app.get('/callback', async (req, res) => {
     });
     const guildsData = await guildsResponse.json();
 
-    // جلب السيرفرات التي يتواجد فيها البوت فعلياً من خلال الـ Bot Token
-    let botGuilds = [];
+    // جلب السيرفرات التي يتواجد فيها البوت فعلياً من خلال الـ Bot Token الخاص به
+    let botGuildIds = new Set();
     try {
       const botGuildsRes = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-        headers: { authorization: `Bot _lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv` } // (ملاحظة: تأكد من وضع توكن البوت الحقيقي هنا إذا لزم)
+        headers: { authorization: `Bot ${BOT_TOKEN}` }
       });
       if (botGuildsRes.ok) {
-        botGuilds = await botGuildsRes.json();
+        const botGuilds = await botGuildsRes.json();
+        botGuildIds = new Set(botGuilds.map(g => g.id));
       }
     } catch (e) {
-      console.log('Could not fetch bot guilds via API, fallback mode.');
+      console.log('Error fetching bot guilds:', e);
     }
 
-    // دمج معرفة وجود البوت في السيرفرات
-    const botGuildIds = new Set(botGuilds.map(g => g.id));
-    
     req.session.user = userData;
-    req.session.guilds = guildsData.map(guild => ({
-      ...guild,
-      hasBot: botGuildIds.has(guild.id) || ((guild.permissions & 0x20) === 0x20) // تحقق ذكي من وجود البوت أو صلاحية Manage Server
-    }));
+    // الفحص الحقيقي: هل المستخدم يمتلك صلاحية الإدارة (Administrator أو Manage Server) وَالبوت موجود داخل السيرفر حقاً؟
+    req.session.guilds = guildsData.map(guild => {
+      const isAdmin = (guild.permissions & 0x8) === 0x8 || (guild.permissions & 0x20) === 0x20 || guild.owner;
+      const hasBot = botGuildIds.has(guild.id);
+      return {
+        ...guild,
+        isAdmin,
+        hasBot
+      };
+    });
     
     res.redirect('/dashboard');
   } catch (err) {
@@ -136,12 +141,10 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// ستايل الواجهة المحسن (ألوان غنية وواضحة بعيدة عن الباهت والرمادي السادة)
 const globalStyle = `
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
     body { background-color: #0e131f; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
     
-    /* Sidebar */
     .sidebar { width: 280px; background: linear-gradient(180deg, #141b2d, #0b0f19); border-left: 1px solid #1e293b; display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: 8px 0 30px rgba(0,0,0,0.4); }
     .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid #1e293b; }
     .user-profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #6366f1; object-fit: cover; box-shadow: 0 0 12px rgba(99, 102, 241, 0.4); }
@@ -155,7 +158,6 @@ const globalStyle = `
     .nav-menu li.logout a { background: rgba(239, 68, 68, 0.15); color: #f87171; text-align: center; margin-top: auto; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.3); }
     .nav-menu li.logout a:hover { background-color: #ef4444; color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
 
-    /* Main Content */
     .main-content { flex: 1; padding: 40px; overflow-y: auto; background: radial-gradient(circle at top right, #172033, #0e131f); }
     .section-box { background: linear-gradient(135deg, #171f30, #111827); border: 1px solid #1f293d; padding: 30px; border-radius: 16px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
     .section-box h3 { margin-bottom: 20px; font-size: 20px; color: #fff; border-bottom: 1px solid #1f293d; padding-bottom: 14px; display: flex; align-items: center; gap: 10px; }
@@ -166,7 +168,6 @@ const globalStyle = `
     .btn-save:hover { filter: brightness(1.1); transform: translateY(-2px); }
 `;
 
-// دالة القائمة الجانبية داخل السيرفر
 function getServerSidebar(guildId, activePage, avatarUrl, username) {
   return `
     <div class="sidebar">
@@ -195,14 +196,14 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
   `;
 }
 
-// 1. لوحة التحكم الرئيسية (إظهار حالة السيرفرات وزر الاختيار بوضوح)
+// لوحة التحكم الرئيسية - عرض السيرفرات التي يمتلك صلاحية عليها وتصفية حالة البوت بدقة
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const user = req.session.user;
   const guilds = req.session.guilds || [];
   const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-  const adminGuilds = guilds.filter(guild => (guild.permissions & 0x8) === 0x8 || guild.owner || guild.hasBot);
+  const adminGuilds = guilds.filter(guild => guild.isAdmin);
   adminGuilds.sort((a, b) => (b.hasBot ? 1 : 0) - (a.hasBot ? 1 : 0));
 
   let guildsHtml = '';
@@ -219,7 +220,7 @@ app.get('/dashboard', (req, res) => {
 
       const statusText = hasBot ? 
         `<span style="color: #34d399; font-size: 12px; font-weight: bold; background: rgba(52, 211, 153, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(52, 211, 153, 0.3);">البوت موجود ✅</span>` : 
-        `<span style="color: #94a3b8; font-size: 12px; background: rgba(148, 163, 184, 0.1); padding: 5px 12px; border-radius: 20px;">البوت غير متواجد ❌</span>`;
+        `<span style="color: #ef4444; font-size: 12px; font-weight: bold; background: rgba(239, 68, 68, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.3);">البوت غير متواجد ❌</span>`;
 
       guildsHtml += `
         <div style="background: linear-gradient(135deg, #131b2e, #0d1424); border: 1px solid #1e293b; padding: 20px 24px; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; transition: 0.25s; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
@@ -277,7 +278,7 @@ app.get('/dashboard', (req, res) => {
   `);
 });
 
-// 2. إحصائيات السيرفر
+// إحصائيات السيرفر
 app.get('/dashboard/server/:guildId/stats', async (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
@@ -286,7 +287,7 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
   const guild = guilds.find(g => g.id === guildId);
   const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-  if (!guild) return res.redirect('/dashboard');
+  if (!guild || !guild.hasBot) return res.redirect('/dashboard');
 
   res.send(`
     <!DOCTYPE html>
@@ -309,7 +310,7 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
                     </div>
                     <div style="background:#0e131f; padding:25px; border-radius:14px; border:1px solid #1f293d; text-align:center;">
                         <h4 style="color:#94a3b8; margin-bottom:12px; font-size:14px;">حالة الاتصال بالبوت</h4>
-                        <span style="font-size:16px; color:${guild.hasBot ? '#34d399' : '#fbbf24'}; font-weight:bold;">${guild.hasBot ? 'متصل ومفعل ✅' : 'غير متصل'}</span>
+                        <span style="font-size:16px; color:#34d399; font-weight:bold;">متصل ومفعل ✅</span>
                     </div>
                 </div>
             </div>
@@ -319,7 +320,7 @@ app.get('/dashboard/server/:guildId/stats', async (req, res) => {
   `);
 });
 
-// 3. نظام التذاكر (Tickets)
+// نظام التذاكر
 app.get('/dashboard/server/:guildId/tickets', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
@@ -354,7 +355,7 @@ app.get('/dashboard/server/:guildId/tickets', (req, res) => {
   `);
 });
 
-// 4. نظام الحماية (Protection)
+// نظام الحماية
 app.get('/dashboard/server/:guildId/protection', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
@@ -389,7 +390,7 @@ app.get('/dashboard/server/:guildId/protection', (req, res) => {
   `);
 });
 
-// 5. السجلات (Logs)
+// السجلات
 app.get('/dashboard/server/:guildId/logs', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
@@ -424,7 +425,7 @@ app.get('/dashboard/server/:guildId/logs', (req, res) => {
   `);
 });
 
-// 6. قسم الألعاب (Games)
+// قسم الألعاب
 app.get('/dashboard/server/:guildId/games', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const { guildId } = req.params;
