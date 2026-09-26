@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // بيانات ديسكورد الخاصة بك
-const CLIENT_ID = '1347723929617960960';
+const CLIENT_ID = '1547723929617960960';
 const CLIENT_SECRET = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv';
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 
