@@ -1,7 +1,7 @@
 {
   "name": "discord-bot-dashboard",
   "version": "1.0.0",
-  "description": "Discord Bot Dashboard like ProBot",
+  "description": "Discord Bot and Dashboard",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -9,11 +9,6 @@
   "dependencies": {
     "discord.js": "^14.14.1",
     "express": "^4.19.2",
-    "express-session": "^1.18.0",
-    "ejs": "^3.1.10",
-    "node-fetch": "^2.7.0"
-  },
-  "engines": {
-    "node": "18.x"
+    "express-session": "^1.18.0"
   }
 }
