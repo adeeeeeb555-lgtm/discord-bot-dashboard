@@ -19,7 +19,13 @@ client.once('ready', () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
 });
 
-client.login(BOT_TOKEN);
+if (BOT_TOKEN) {
+    client.login(BOT_TOKEN).catch(err => {
+        console.error('فشل تسجيل دخول البوت، تأكد من صحة الـ Token:', err.message);
+    });
+} else {
+    console.log('⚠️ تنبيه: لم يتم العثور على توكن البوت في متغيرات البيئة (TOKEN).');
+}
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
@@ -28,7 +34,9 @@ app.use(express.json());
 app.use(session({
     secret: 'my_super_secret_key_123',
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    // إخفاء تحذير الذاكرة في الإنتاج
+    proxy: true
 }));
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
