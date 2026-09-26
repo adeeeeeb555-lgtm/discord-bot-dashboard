@@ -88,6 +88,10 @@ app.get('/callback', async (req, res) => {
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const user = req.session.user;
+  
+  // رابط دعوة البوت الجديد
+  const botInviteUrl = 'https://discord.com/oauth2/authorize?client_id=1547723929617960960&permissions=8&integration_type=0&scope=bot';
+
   res.send(`
     <html dir="rtl" lang="ar">
       <head>
@@ -97,14 +101,23 @@ app.get('/dashboard', (req, res) => {
           body { background-color: #0d1117; color: #fff; font-family: Tahoma, sans-serif; text-align: center; padding-top: 50px; }
           h1 { color: #238636; }
           .avatar { width: 100px; height: 100px; border-radius: 50%; margin-top: 20px; }
-          .btn { background-color: #da3633; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; }
+          .btn { background-color: #5865F2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; margin-left: 10px; }
+          .btn:hover { background-color: #4752C4; }
+          .logout-btn { background-color: #da3633; }
+          .logout-btn:hover { background-color: #b31d1c; }
         </style>
       </head>
       <body>
         <h1>أهلاً بك يا ${user.username} في لوحة التحكم! 🎉</h1>
         <img class="avatar" src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" alt="Avatar">
-        <p>تم تسجل دخولك بنجاح عبر حسابك في ديسكورد.</p>
-        <a href="/" class="btn">تسجيل الخروج</a>
+        <p>تم تسجيل دخولك بنجاح عبر حسابك في ديسكورد.</p>
+        
+        <br>
+        <!-- زر إضافة البوت لسيرفر المستخدم -->
+        <a href="${botInviteUrl}" target="_blank" class="btn">إضافة البوت لسيرفرك 🤖</a>
+        
+        <br>
+        <a href="/" class="btn logout-btn">تسجيل الخروج</a>
       </body>
     </html>
   `);
