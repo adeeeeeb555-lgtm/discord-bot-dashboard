@@ -10,6 +10,9 @@ const BOT_TOKEN = process.env.TOKEN || process.env.BOT_TOKEN || process.env.DISC
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
+// رابط خلفية السماء للموقع (يمكنك استبداله بأي رابط صورة آخر تريده)
+const BG_IMAGE_URL = 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1920&auto=format&fit=crop';
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -117,23 +120,35 @@ if (BOT_TOKEN) {
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+// حفظ تسجيل الدخول لمدة أسبوعين (14 يوماً)
 app.use(session({
     secret: 'sky_blue_secret_key_777',
     resave: false,
     saveUninitialized: false,
-    proxy: true
+    proxy: true,
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 14 // 14 يوم
+    }
 }));
 
 const DISCORD_LOGIN_URL = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 
-// تصميم ستايل سماء الليل (Sky Blue Style) المستوحى من صورتك
+// تصميم ستايل سماء الليل (Sky Blue Style) مع صورة الخلفية والتدرج الشفاف
 const globalStyle = `
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-    body { background-color: #060913; color: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
     
-    /* الـ Sidebar بلون سماء الليل */
-    .sidebar { width: 280px; background: #0b1120; border-left: 1px solid rgba(56, 189, 248, 0.15); display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: -5px 0 25px rgba(0,0,0,0.8); }
+    body { 
+        background: linear-gradient(rgba(6, 9, 19, 0.85), rgba(6, 9, 19, 0.92)), url('${BG_IMAGE_URL}') no-repeat center center fixed; 
+        background-size: cover; 
+        color: #f1f5f9; 
+        display: flex; 
+        height: 100vh; 
+        overflow: hidden; 
+    }
+    
+    .sidebar { width: 280px; background: rgba(11, 17, 32, 0.9); backdrop-filter: blur(12px); border-left: 1px solid rgba(56, 189, 248, 0.15); display: flex; flex-direction: column; justify-content: space-between; padding: 25px 20px; box-shadow: -5px 0 25px rgba(0,0,0,0.8); }
     .user-profile { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .user-profile img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid #38bdf8; object-fit: cover; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
     .user-info h3 { font-size: 15px; color: #fff; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
@@ -145,13 +160,12 @@ const globalStyle = `
     .nav-menu li.bot-add a { background: #10b981; color: #fff; justify-content: center; margin-top: 15px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
     .nav-menu li.logout a { background: rgba(239, 68, 68, 0.1); color: #f87171; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.2); margin-top: 15px; }
     
-    /* المحتوى الرئيسي */
-    .main-content { flex: 1; padding: 45px; overflow-y: auto; background: radial-gradient(circle at top, #0f172a 0%, #060913 70%); }
-    .section-box { background: #090e1a; border: 1px solid rgba(56, 189, 248, 0.2); padding: 35px; border-radius: 20px; margin-top: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden; }
+    .main-content { flex: 1; padding: 45px; overflow-y: auto; background: transparent; }
+    .section-box { background: rgba(9, 14, 26, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(56, 189, 248, 0.2); padding: 35px; border-radius: 20px; margin-top: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); position: relative; overflow: hidden; }
     .section-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); }
     .section-box h3 { margin-bottom: 25px; font-size: 22px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 18px; display: flex; align-items: center; gap: 12px; }
     
-    .form-control { width: 100%; padding: 15px 20px; background: #060913; border: 1px solid rgba(56, 189, 248, 0.3); color: #fff; border-radius: 14px; margin-bottom: 20px; font-size: 15px; transition: all 0.3s; }
+    .form-control { width: 100%; padding: 15px 20px; background: rgba(6, 9, 19, 0.9); border: 1px solid rgba(56, 189, 248, 0.3); color: #fff; border-radius: 14px; margin-bottom: 20px; font-size: 15px; transition: all 0.3s; }
     .form-control:focus { border-color: #38bdf8; outline: none; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
     .btn-save { background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; padding: 14px 32px; border: none; border-radius: 14px; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 5px 20px rgba(2, 132, 199, 0.4); transition: 0.3s; }
     .btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(2, 132, 199, 0.6); }
@@ -177,13 +191,19 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
             </ul>
         </div>
         <ul class="nav-menu" style="margin-top:0;">
-            <li class="logout"><a href="/">🚪 تسجيل خروج</a></li>
+            <li class="logout"><a href="/logout">🚪 تسجيل خروج</a></li>
         </ul>
     </div>
   `;
 }
 
-// الصفحة الرئيسية (الهيرو بتصميم سماء الليل المضيء باللون الأزرق)
+// مسار تسجيل الخروج لمسح الجلسة
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/');
+    });
+});
+
 app.get('/', (req, res) => {
     const isLoggedIn = req.session.user ? true : false;
     res.send(`
@@ -191,15 +211,24 @@ app.get('/', (req, res) => {
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-        body { background: #060913; color: #fff; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; overflow-x: hidden; }
         
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 25px 70px; background: rgba(11, 17, 32, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(56, 189, 248, 0.15); }
+        body { 
+            background: linear-gradient(rgba(6, 9, 19, 0.82), rgba(6, 9, 19, 0.9)), url('${BG_IMAGE_URL}') no-repeat center center fixed; 
+            background-size: cover; 
+            color: #fff; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            overflow-x: hidden; 
+        }
+        
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 25px 70px; background: rgba(11, 17, 32, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(56, 189, 248, 0.15); }
         .logo { font-size: 22px; font-weight: 900; background: linear-gradient(135deg, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .login-btn { background: linear-gradient(135deg, #0284c7, #0369a1); color: white; padding: 12px 28px; border-radius: 14px; text-decoration: none; font-weight: bold; font-size: 14px; box-shadow: 0 4px 20px rgba(2, 132, 199, 0.4); transition: 0.3s; }
         .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(2, 132, 199, 0.6); }
         
         .hero { text-align: center; padding: 110px 20px 80px 20px; max-width: 900px; margin: auto; position: relative; }
-        /* هالة الإضاءة الزرقاء السماوية الخلفية */
         .hero::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 600px; height: 250px; background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.2) 0%, rgba(6, 9, 19, 0) 70%); z-index: -1; filter: blur(35px); }
         
         .hero h1 { font-size: 52px; font-weight: 900; margin-bottom: 25px; line-height: 1.3; letter-spacing: -1px; }
@@ -209,10 +238,10 @@ app.get('/', (req, res) => {
         .cta-buttons { display: flex; gap: 18px; justify-content: center; align-items: center; }
         .btn-primary { background: linear-gradient(135deg, #0284c7, #0369a1); color: white; padding: 16px 36px; border-radius: 16px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 6px 25px rgba(2, 132, 199, 0.4); transition: 0.3s; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(2, 132, 199, 0.6); }
-        .btn-secondary { background: #090e1a; border: 1px solid rgba(56, 189, 248, 0.3); color: #fff; padding: 16px 36px; border-radius: 16px; text-decoration: none; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-secondary { background: rgba(9, 14, 26, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); color: #fff; padding: 16px 36px; border-radius: 16px; text-decoration: none; font-weight: bold; font-size: 16px; transition: 0.3s; }
         .btn-secondary:hover { background: rgba(56, 189, 248, 0.1); border-color: #38bdf8; }
         
-        footer { text-align: center; padding: 25px; color: #64748b; font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04); background: #060913; }
+        footer { text-align: center; padding: 25px; color: #64748b; font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04); background: rgba(6, 9, 19, 0.9); }
     </style></head>
     <body>
         <nav>
@@ -277,7 +306,7 @@ app.get('/dashboard', (req, res) => {
         const statusBadge = hasBot ? `<span style="color: #34d399; font-size: 13px; font-weight: 600;">البوت متصل ويعمل ✅</span>` : `<span style="color: #f87171; font-size: 13px; font-weight: 600;">البوت غير مضاف ❌</span>`;
 
         guildsHtml += `
-            <div style="background: #0b1120; border: 1px solid rgba(56, 189, 248, 0.2); padding: 22px 28px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; transition: 0.3s;">
+            <div style="background: rgba(11, 17, 32, 0.85); border: 1px solid rgba(56, 189, 248, 0.2); padding: 22px 28px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; transition: 0.3s;">
                 <div style="display: flex; align-items: center; gap: 20px;">
                     <img src="${iconUrl}" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8;">
                     <div><h4 style="color: #fff; font-size: 17px; margin-bottom: 6px;">${guild.name}</h4>${statusBadge}</div>
@@ -295,7 +324,7 @@ app.get('/dashboard', (req, res) => {
                 <div class="user-profile"><img src="${avatarUrl}"><div class="user-info"><h3>${user.username}</h3><span>مدير النظام</span></div></div>
                 <ul class="nav-menu"><li><a href="/dashboard" class="active">🏠 السيرفرات</a></li></ul>
             </div>
-            <ul class="nav-menu" style="margin-top:0;"><li class="logout"><a href="/">🚪 خروج</a></li></ul>
+            <ul class="nav-menu" style="margin-top:0;"><li class="logout"><a href="/logout">🚪 خروج</a></li></ul>
         </div>
         <div class="main-content"><div class="section-box"><h3>🌐 سيرفراتك المتاحة للإدارة</h3><div>${guildsHtml}</div></div></div>
     </body></html>
