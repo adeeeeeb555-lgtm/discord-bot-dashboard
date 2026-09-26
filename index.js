@@ -1,17 +1,16 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const express = require('express');
 const session = require('express-session');
-const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const CLIENT_ID = '1547723929617960960';
 const CLIENT_SECRET = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv';
-const BOT_TOKEN = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv'; // ضع توكن البوت الصحيح هنا
+const BOT_TOKEN = '_lyGzOx42RuZZmvXozYOlm4ULPfzT7Qv'; 
 const REDIRECT_URI = 'https://discord-bot-dashboard-1987.onrender.com/callback';
 const BOT_INVITE_URL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&permissions=8&integration_type=0&scope=bot`;
 
-// إعداد ديسكورد كلايت الحقيقي لجلب السيرفرات المتواجد فيها البوت بدقة
+// إعداد ديسكورد كلايت
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -25,7 +24,6 @@ client.login(BOT_TOKEN);
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static('public'));
 
 app.use(session({
   secret: 'my_super_secret_key_123',
@@ -89,7 +87,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// مسار الـ Callback والتحقق المباشر عبر كاش ديسكورد.js
+// مسار الـ Callback
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.redirect('/');
@@ -122,10 +120,9 @@ app.get('/callback', async (req, res) => {
 
     req.session.user = userData;
     
-    // الفحص الحقيقي والدقيق عبر البوت المتصل مباشرة بالـ Cache
+    // الفحص الحقيقي والدقيق عبر كاش البوت المتصل مباشرة
     req.session.guilds = guildsData.map(guild => {
       const isAdmin = (guild.permissions & 0x8) === 0x8 || (guild.permissions & 0x20) === 0x20 || guild.owner;
-      // التحقق هل البوت موجود داخل هذا السيرفر حقيقة عبر كاش البوت المتصل
       const hasBot = client.guilds.cache.has(guild.id);
       return {
         ...guild,
@@ -191,7 +188,7 @@ function getServerSidebar(guildId, activePage, avatarUrl, username) {
   `;
 }
 
-// لوحة التحكم الرئيسية - عرض السيرفرات بتمييز صحيح مبني على كاش البوت الفعلي
+// لوحة التحكم الرئيسية
 app.get('/dashboard', (req, res) => {
   if (!req.session.user) return res.redirect('/');
   const user = req.session.user;
